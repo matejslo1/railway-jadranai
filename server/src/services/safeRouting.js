@@ -1,9 +1,15 @@
+const { point, lineString, featureCollection } = require('@turf/helpers');
+const booleanIntersects = require('@turf/boolean-intersects').default || require('@turf/boolean-intersects');
+const booleanPointInPolygon = require('@turf/boolean-point-in-polygon').default || require('@turf/boolean-point-in-polygon');
+const bbox = require('@turf/bbox').default || require('@turf/bbox');
+const buffer = require('@turf/buffer').default || require('@turf/buffer');
+const lineIntersect = require('@turf/line-intersect').default || require('@turf/line-intersect');
+
 // Deterministic water-safe routing (Adriatic MVP)
 // Goal: never draw a segment that crosses land.
 // Implementation: A* over a water grid constrained by a buffered landmask.
 // NOTE: This is NOT an official nautical router (no ENC/bathymetry), but it reliably avoids coastline/islands.
 
-const turf = require('@turf/turf');
 const topojson = require('topojson-client');
 
 // Natural Earth land polygons via world-atlas TopoJSON.
@@ -20,19 +26,19 @@ try {
 // Buffer land a bit so routes don't "scrape" the coastline.
 // 0.2 km works well as a conservative default for plotting.
 const LAND_BUFFER_KM = Number(process.env.LAND_BUFFER_KM || 0.2);
-const landBuffered = turf.buffer(land, LAND_BUFFER_KM, { units: 'kilometers' });
+const landBuffered = buffer(land, LAND_BUFFER_KM, { units: 'kilometers' });
 
 function point(lat, lng) {
-  return turf.point([lng, lat]);
+  return point([lng, lat]);
 }
 
 function isOnLand(lat, lng) {
-  return turf.booleanPointInPolygon(point(lat, lng), landBuffered);
+  return booleanPointInPolygon(point(lat, lng), landBuffered);
 }
 
 function crossesLand(a, b) {
-  const seg = turf.lineString([[a[1], a[0]], [b[1], b[0]]]); // [lng,lat]
-  return turf.booleanIntersects(seg, landBuffered);
+  const seg = lineString([[a[1], a[0]], [b[1], b[0]]]); // [lng,lat]
+  return booleanIntersects(seg, landBuffered);
 }
 
 function clampAdriatic(lat, lng) {
@@ -43,7 +49,7 @@ function clampAdriatic(lat, lng) {
 }
 
 function haversineKm(a, b) {
-  return turf.distance(turf.point([a[1], a[0]]), turf.point([b[1], b[0]]), { units: 'kilometers' });
+  return turf.distance(point([a[1], a[0]]), point([b[1], b[0]]), { units: 'kilometers' });
 }
 
 function key(lat, lng) {
@@ -197,7 +203,7 @@ function simplifyAndSmooth(path) {
   if (!path || path.length < 3) return path;
 
   // Simplify a bit (avoid huge point count)
-  const line = turf.lineString(path.map(p => [p[1], p[0]]));
+  const line = lineString(path.map(p => [p[1], p[0]]));
   const simplified = turf.simplify(line, { tolerance: 0.002, highQuality: false });
   const coords = simplified.geometry.coordinates.map(c => [c[1], c[0]]);
 

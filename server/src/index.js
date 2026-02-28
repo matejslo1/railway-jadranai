@@ -65,6 +65,21 @@ app.use('/api/weather', weatherRoutes);
 app.use('/api/places', placesRoutes);
 app.use('/api/waitlist', waitlistRoutes);
 
+
+// --- Serve built client (optional) ---
+// If you deploy on a single VPS, build the client and the server will serve it.
+// (Railway/Vercel split deployments can ignore this.)
+const path = require('path');
+const clientDistPath = path.join(__dirname, '..', '..', 'client', 'dist');
+if (require('fs').existsSync(clientDistPath)) {
+  app.use(express.static(clientDistPath));
+  // SPA fallback (Vite/React Router)
+  app.get('*', (req, res, next) => {
+    if (req.path.startsWith('/api')) return next();
+    res.sendFile(path.join(clientDistPath, 'index.html'));
+  });
+}
+
 // --- 404 Handler ---
 app.use((req, res) => {
   res.status(404).json({ error: 'Endpoint not found', path: req.path });
