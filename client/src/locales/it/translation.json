@@ -57,5 +57,6 @@
   "vessel_optional": "opzionale",
   "vessel_draft_help": "Quanto l’imbarcazione pesca sotto la linea di galleggiamento.",
   "vessel_air_draft_help": "Punto più alto sopra la linea di galleggiamento (es. cima dell’albero).",
-  "vessel_speed_help": "Usato per ETA e pianificazione giornaliera."
+  "vessel_speed_help": "Usato per ETA e pianificazione giornaliera.",
+  "water_only": "Solo via mare (evita la terra)"
 }

@@ -7,77 +7,18 @@ import AIChat from './components/AIChat.jsx';
 import SavedTrips from './components/SavedTrips.jsx';
 import PDFExportButton from './components/PDFExport.jsx';
 
-// ─── Icons ────────────────────────────────────────────────────────────────────
+// --- Icons ---
 const Icons = {
-  Wave: () => (
-    <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-      <path d="M2 12c1.5-2 3-3 4.5-3s3 1 4.5 3 3 3 4.5 3 3-1 4.5-3"/>
-      <path d="M2 17c1.5-2 3-3 4.5-3s3 1 4.5 3 3 3 4.5 3 3-1 4.5-3"/>
-    </svg>
-  ),
-  Wind: () => (
-    <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-      <path d="M17.7 7.7a2.5 2.5 0 1 1 1.8 4.3H2"/>
-      <path d="M9.6 4.6A2 2 0 1 1 11 8H2"/>
-      <path d="M12.6 19.4A2 2 0 1 0 14 16H2"/>
-    </svg>
-  ),
-  Anchor: () => (
-    <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-      <circle cx="12" cy="5" r="3"/>
-      <line x1="12" y1="8" x2="12" y2="21"/>
-      <path d="M5 12H2a10 10 0 0 0 20 0h-3"/>
-    </svg>
-  ),
-  Compass: () => (
-    <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-      <circle cx="12" cy="12" r="10"/>
-      <polygon points="16.24 7.76 14.12 14.12 7.76 16.24 9.88 9.88 16.24 7.76" fill="currentColor"/>
-    </svg>
-  ),
-  Send: () => (
-    <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-      <line x1="22" y1="2" x2="11" y2="13"/>
-      <polygon points="22 2 15 22 11 13 2 9 22 2"/>
-    </svg>
-  ),
-  Sun: () => (
-    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-      <circle cx="12" cy="12" r="5"/>
-      <line x1="12" y1="1" x2="12" y2="3"/>
-      <line x1="12" y1="21" x2="12" y2="23"/>
-      <line x1="4.22" y1="4.22" x2="5.64" y2="5.64"/>
-      <line x1="18.36" y1="18.36" x2="19.78" y2="19.78"/>
-      <line x1="1" y1="12" x2="3" y2="12"/>
-      <line x1="21" y1="12" x2="23" y2="12"/>
-      <line x1="4.22" y1="19.78" x2="5.64" y2="18.36"/>
-      <line x1="18.36" y1="5.64" x2="19.78" y2="4.22"/>
-    </svg>
-  ),
-  Mail: () => (
-    <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-      <rect x="2" y="4" width="20" height="16" rx="2"/>
-      <path d="M22 4L12 13 2 4"/>
-    </svg>
-  ),
-  Check: () => (
-    <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-      <polyline points="20 6 9 17 4 12"/>
-    </svg>
-  ),
-  Sail: () => (
-    <svg width="36" height="36" viewBox="0 0 24 24" fill="none" stroke="#3b9ece" strokeWidth="1.5">
-      <path d="M2 20L12 4l3 6 5-2-6 12H2z" fill="rgba(59,158,206,0.15)"/>
-      <path d="M2 20L12 4l3 6 5-2-6 12H2z"/>
-    </svg>
-  ),
-  Globe: () => (
-    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-      <circle cx="12" cy="12" r="10"/>
-      <line x1="2" y1="12" x2="22" y2="12"/>
-      <path d="M12 2a15.3 15.3 0 0 1 4 10 15.3 15.3 0 0 1-4 10 15.3 15.3 0 0 1-4-10 15.3 15.3 0 0 1 4-10z"/>
-    </svg>
-  ),
+  Wave: () => <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M2 12c1.5-2 3-3 4.5-3s3 1 4.5 3 3 3 4.5 3 3-1 4.5-3"/><path d="M2 17c1.5-2 3-3 4.5-3s3 1 4.5 3 3 3 4.5 3 3-1 4.5-3"/></svg>,
+  Wind: () => <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M17.7 7.7a2.5 2.5 0 1 1 1.8 4.3H2"/><path d="M9.6 4.6A2 2 0 1 1 11 8H2"/><path d="M12.6 19.4A2 2 0 1 0 14 16H2"/></svg>,
+  Anchor: () => <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><circle cx="12" cy="5" r="3"/><line x1="12" y1="8" x2="12" y2="21"/><path d="M5 12H2a10 10 0 0 0 20 0h-3"/></svg>,
+  Compass: () => <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><circle cx="12" cy="12" r="10"/><polygon points="16.24 7.76 14.12 14.12 7.76 16.24 9.88 9.88 16.24 7.76" fill="currentColor"/></svg>,
+  Send: () => <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><line x1="22" y1="2" x2="11" y2="13"/><polygon points="22 2 15 22 11 13 2 9 22 2"/></svg>,
+  Sun: () => <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><circle cx="12" cy="12" r="5"/><line x1="12" y1="1" x2="12" y2="3"/><line x1="12" y1="21" x2="12" y2="23"/><line x1="4.22" y1="4.22" x2="5.64" y2="5.64"/><line x1="18.36" y1="18.36" x2="19.78" y2="19.78"/><line x1="1" y1="12" x2="3" y2="12"/><line x1="21" y1="12" x2="23" y2="12"/><line x1="4.22" y1="19.78" x2="5.64" y2="18.36"/><line x1="18.36" y1="5.64" x2="19.78" y2="4.22"/></svg>,
+  Mail: () => <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><rect x="2" y="4" width="20" height="16" rx="2"/><path d="M22 4L12 13 2 4"/></svg>,
+  Check: () => <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><polyline points="20 6 9 17 4 12"/></svg>,
+  Sail: () => <svg width="36" height="36" viewBox="0 0 24 24" fill="none" stroke="#3b9ece" strokeWidth="1.5"><path d="M2 20L12 4l3 6 5-2-6 12H2z" fill="rgba(59,158,206,0.15)"/><path d="M2 20L12 4l3 6 5-2-6 12H2z"/></svg>,
+  Globe: () => <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><circle cx="12" cy="12" r="10"/><line x1="2" y1="12" x2="22" y2="12"/><path d="M12 2a15.3 15.3 0 0 1 4 10 15.3 15.3 0 0 1-4 10 15.3 15.3 0 0 1-4-10 15.3 15.3 0 0 1 4-10z"/></svg>,
 };
 
 const LANGUAGES = [
@@ -88,7 +29,6 @@ const LANGUAGES = [
   { code: 'de', label: 'DE', name: 'Deutsch' },
 ];
 
-// ─── Language switcher ────────────────────────────────────────────────────────
 function LanguageSwitcher() {
   const { i18n } = useTranslation();
   const [open, setOpen] = useState(false);
@@ -101,11 +41,8 @@ function LanguageSwitcher() {
       {open && (
         <div className="lang-dropdown">
           {LANGUAGES.map(lang => (
-            <button
-              key={lang.code}
-              className={`lang-option ${lang.code === current.code ? 'active' : ''}`}
-              onClick={() => { i18n.changeLanguage(lang.code); setOpen(false); }}
-            >
+            <button key={lang.code} className={`lang-option ${lang.code === current.code ? 'active' : ''}`}
+              onClick={() => { i18n.changeLanguage(lang.code); setOpen(false); }}>
               {lang.name}
             </button>
           ))}
@@ -115,13 +52,11 @@ function LanguageSwitcher() {
   );
 }
 
-// ─── Waitlist form ────────────────────────────────────────────────────────────
 function WaitlistForm() {
   const { t } = useTranslation();
   const [email, setEmail] = useState('');
   const [status, setStatus] = useState(null);
   const [message, setMessage] = useState('');
-
   const handleSubmit = async () => {
     if (!email || !email.includes('@')) return;
     setStatus('loading');
@@ -129,30 +64,15 @@ function WaitlistForm() {
       const data = await joinWaitlist(email);
       if (data.success) { setStatus('success'); setMessage(data.message); }
       else { setStatus('error'); setMessage(data.error || 'Something went wrong'); }
-    } catch {
-      setStatus('error'); setMessage('Connection failed.');
-    }
+    } catch { setStatus('error'); setMessage('Connection failed.'); }
   };
-
-  if (status === 'success') {
-    return (
-      <div className="waitlist-success">
-        <Icons.Check /><span>{message}</span>
-      </div>
-    );
-  }
-
+  if (status === 'success') return <div className="waitlist-success"><Icons.Check /><span>{message}</span></div>;
   return (
     <div className="waitlist-form">
       <div className="waitlist-input-wrap">
         <Icons.Mail />
-        <input
-          type="email"
-          value={email}
-          onChange={e => setEmail(e.target.value)}
-          onKeyDown={e => e.key === 'Enter' && handleSubmit()}
-          placeholder={t('waitlist_placeholder')}
-        />
+        <input type="email" value={email} onChange={e => setEmail(e.target.value)}
+          onKeyDown={e => e.key === 'Enter' && handleSubmit()} placeholder={t('waitlist_placeholder')} />
       </div>
       <button onClick={handleSubmit} disabled={status === 'loading'} className="waitlist-btn">
         {status === 'loading' ? t('waitlist_joining') : t('waitlist_btn')}
@@ -161,7 +81,7 @@ function WaitlistForm() {
   );
 }
 
-// ─── View tabs ────────────────────────────────────────────────────────────────
+// View mode tabs for results
 function ViewTabs({ active, onChange }) {
   const tabs = [
     { id: 'itinerary', label: '📋 Itinerar' },
@@ -171,105 +91,37 @@ function ViewTabs({ active, onChange }) {
   return (
     <div style={{ display: 'flex', gap: 6, marginBottom: 16, background: 'rgba(10,22,40,0.6)', borderRadius: 12, padding: 4 }}>
       {tabs.map(tab => (
-        <button
-          key={tab.id}
-          onClick={() => onChange(tab.id)}
-          style={{
-            flex: 1,
-            padding: '8px 12px',
-            background: active === tab.id ? 'linear-gradient(135deg, #1a7fb5, #3b9ece)' : 'transparent',
-            border: 'none',
-            borderRadius: 9,
-            color: active === tab.id ? '#fff' : '#5a8da8',
-            fontFamily: 'Outfit, sans-serif',
-            fontSize: 13,
-            fontWeight: active === tab.id ? 700 : 400,
-            cursor: 'pointer',
-            transition: 'all 0.2s',
-          }}
-        >
-          {tab.label}
-        </button>
+        <button key={tab.id} onClick={() => onChange(tab.id)} style={{
+          flex: 1,
+          padding: '8px 12px',
+          background: active === tab.id ? 'linear-gradient(135deg, #1a7fb5, #3b9ece)' : 'transparent',
+          border: 'none',
+          borderRadius: 9,
+          color: active === tab.id ? '#fff' : '#5a8da8',
+          fontFamily: 'Outfit, sans-serif',
+          fontSize: 13,
+          fontWeight: active === tab.id ? 700 : 400,
+          cursor: 'pointer',
+          transition: 'all 0.2s',
+        }}>{tab.label}</button>
       ))}
     </div>
   );
 }
 
-// ─── Vessel row (compact) ─────────────────────────────────────────────────────
-function VesselRow({ vessel, setVessel, disabled }) {
-  return (
-    <div style={{
-      display: 'flex', gap: 8, flexWrap: 'wrap', alignItems: 'center',
-      marginTop: 8, padding: '7px 12px',
-      background: 'rgba(10,22,40,0.5)',
-      border: '1px solid rgba(59,158,206,0.12)',
-      borderRadius: 10,
-    }}>
-      <span style={{ color: 'rgba(90,158,192,0.6)', fontSize: 11 }}>🚢</span>
-      <select
-        value={vessel.type}
-        onChange={e => setVessel(v => ({ ...v, type: e.target.value }))}
-        disabled={disabled}
-        style={{ background: 'rgba(10,22,40,0.8)', border: '1px solid rgba(59,158,206,0.2)', borderRadius: 6, color: '#c8dce8', padding: '3px 7px', fontSize: 12, cursor: 'pointer' }}
-      >
-        <option value="sailboat">⛵ Jadrnica</option>
-        <option value="motorboat">🚤 Motornik</option>
-      </select>
-      <label style={{ color: 'rgba(90,158,192,0.7)', fontSize: 11, display: 'flex', alignItems: 'center', gap: 4 }}>
-        Ugrez
-        <input
-          type="number" inputMode="decimal" step="0.1" min="0.1"
-          value={vessel.draft_m}
-          onChange={e => setVessel(v => ({ ...v, draft_m: parseFloat(e.target.value) || 0 }))}
-          disabled={disabled}
-          style={{ width: 44, background: 'rgba(10,22,40,0.8)', border: '1px solid rgba(59,158,206,0.2)', borderRadius: 6, color: '#c8dce8', padding: '3px 5px', fontSize: 12, textAlign: 'center' }}
-        />
-        m
-      </label>
-      <label style={{ color: 'rgba(90,158,192,0.7)', fontSize: 11, display: 'flex', alignItems: 'center', gap: 4 }}>
-        Višina
-        <input
-          type="number" inputMode="decimal" step="0.1" min="0.1"
-          value={vessel.air_draft_m}
-          onChange={e => setVessel(v => ({ ...v, air_draft_m: parseFloat(e.target.value) || 0 }))}
-          disabled={disabled}
-          style={{ width: 44, background: 'rgba(10,22,40,0.8)', border: '1px solid rgba(59,158,206,0.2)', borderRadius: 6, color: '#c8dce8', padding: '3px 5px', fontSize: 12, textAlign: 'center' }}
-        />
-        m
-      </label>
-      <label style={{ color: 'rgba(90,158,192,0.7)', fontSize: 11, display: 'flex', alignItems: 'center', gap: 4 }}>
-        Hitrost
-        <input
-          type="number" inputMode="decimal" step="0.5" min="1"
-          value={vessel.cruise_speed_kn ?? ''}
-          placeholder="7"
-          onChange={e => setVessel(v => ({ ...v, cruise_speed_kn: e.target.value === '' ? null : (parseFloat(e.target.value) || null) }))}
-          disabled={disabled}
-          style={{ width: 44, background: 'rgba(10,22,40,0.8)', border: '1px solid rgba(59,158,206,0.2)', borderRadius: 6, color: '#c8dce8', padding: '3px 5px', fontSize: 12, textAlign: 'center' }}
-        />
-        kn
-      </label>
-    </div>
-  );
-}
-
-// ─── Main App ─────────────────────────────────────────────────────────────────
-const DEFAULT_VESSEL = { type: 'sailboat', draft_m: 2.0, air_draft_m: 15.0, cruise_speed_kn: 7 };
-
 export default function App() {
   const { t, i18n } = useTranslation();
   const [query, setQuery] = useState('');
   const [loading, setLoading] = useState(false);
-  const [error, setError] = useState(null);
   const [itinerary, setItinerary] = useState(null);
   const [safeRoute, setSafeRoute] = useState(null);
   const [safeRouteLoading, setSafeRouteLoading] = useState(false);
+  const [safeRouteError, setSafeRouteError] = useState(null);
   const [streamText, setStreamText] = useState('');
   const [activeDay, setActiveDay] = useState(0);
   const [showWelcome, setShowWelcome] = useState(true);
-  const [viewTab, setViewTab] = useState('itinerary');
-  const resultRef = useRef(null);
-
+  
+  const DEFAULT_VESSEL = { type: 'sailboat', draft_m: 2.0, air_draft_m: 15.0, cruise_speed_kn: 7, water_only: true };
   const [vessel, setVessel] = useState(() => {
     try { return JSON.parse(localStorage.getItem('jadran_vessel') || '') || DEFAULT_VESSEL; }
     catch { return DEFAULT_VESSEL; }
@@ -278,6 +130,17 @@ export default function App() {
   useEffect(() => {
     try { localStorage.setItem('jadran_vessel', JSON.stringify(vessel)); } catch {}
   }, [vessel]);
+
+  const [debugOverlay, setDebugOverlay] = useState(() => {
+    try { return JSON.parse(localStorage.getItem('jadran_debug_overlay') || 'false'); } catch { return false; }
+  });
+  useEffect(() => {
+    try { localStorage.setItem('jadran_debug_overlay', JSON.stringify(debugOverlay)); } catch {}
+  }, [debugOverlay]);
+
+const [error, setError] = useState(null);
+  const [viewTab, setViewTab] = useState('itinerary');
+  const resultRef = useRef(null);
 
   const plan = async (inputQuery) => {
     const q = inputQuery || query;
@@ -291,23 +154,45 @@ export default function App() {
       const data = await generateTrip(q, i18n.language, undefined, undefined, vessel);
       clearInterval(interval);
       if (data.success && data.itinerary) {
+        console.log('DAY0', JSON.stringify(data.itinerary.days?.[0], null, 2));
         setItinerary(data.itinerary);
         setSafeRoute(null);
+        setSafeRouteError(null);
         setActiveDay(0); setStreamText(''); setViewTab('itinerary');
-        setSafeRouteLoading(true);
-        getSafeRoute(data.itinerary.days, vessel)
-          .then(sr => setSafeRoute(sr))
-          .catch(e => console.warn('Safe route failed:', e))
-          .finally(() => setSafeRouteLoading(false));
+        // Fetch safe route
+        fetchSafeRoute(data.itinerary.days);
         setTimeout(() => resultRef.current?.scrollIntoView({ behavior: 'smooth', block: 'start' }), 100);
-      } else {
-        throw new Error(data.error || 'Failed to generate itinerary');
-      }
-    } catch (err) {
-      clearInterval(interval); setError(err.message); setStreamText('');
-    }
+      } else throw new Error(data.error || 'Failed to generate itinerary');
+    } catch (err) { clearInterval(interval); setError(err.message); setStreamText(''); }
     setLoading(false);
   };
+
+  const fetchSafeRoute = (days) => {
+    if (!days || !Array.isArray(days) || days.length === 0) return Promise.resolve(null);
+    setSafeRouteLoading(true);
+    setSafeRouteError(null);
+    return getSafeRoute(days, vessel, undefined, undefined, { waterOnly: !!vessel.water_only, debug: !!debugOverlay })
+      .then((sr) => {
+        setSafeRoute(sr);
+        return sr;
+      })
+      .catch((e) => {
+        console.warn('Safe route failed:', e);
+        setSafeRoute(null);
+        setSafeRouteError(e?.message || 'Safe route failed');
+        throw e;
+      })
+      .finally(() => setSafeRouteLoading(false));
+  };
+
+  useEffect(() => {
+    if (itinerary?.days && Array.isArray(itinerary.days) && itinerary.days.length > 0) {
+      // Re-fetch to include/exclude debug points
+      fetchSafeRoute(itinerary.days);
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [debugOverlay]);
+
 
   const loadSavedTrip = (savedItinerary, savedQuery) => {
     setItinerary(savedItinerary);
@@ -315,13 +200,16 @@ export default function App() {
     setActiveDay(0);
     setShowWelcome(false);
     setViewTab('itinerary');
+
+    // Fetch safe route also for saved trips (otherwise map can draw straight lines over land)
+    setSafeRoute(null);
+    setSafeRouteError(null);
+    fetchSafeRoute(savedItinerary?.days);
+
     setTimeout(() => resultRef.current?.scrollIntoView({ behavior: 'smooth', block: 'start' }), 100);
   };
 
-  const reset = () => {
-    setItinerary(null); setQuery(''); setError(null); setShowWelcome(true);
-    window.scrollTo({ top: 0, behavior: 'smooth' });
-  };
+  const reset = () => { setItinerary(null); setQuery(''); setError(null); setShowWelcome(true); window.scrollTo({ top: 0, behavior: 'smooth' }); };
 
   const day = itinerary?.days?.[activeDay];
   const weather = day?.weather || {};
@@ -336,7 +224,6 @@ export default function App() {
         <div className="bg-gradient" />
         <div className="content">
 
-          {/* Header */}
           <header className="header">
             <div className="header-top"><LanguageSwitcher /></div>
             <div className="logo-mark">
@@ -344,6 +231,7 @@ export default function App() {
               <h1 className="title">Jadran AI</h1>
             </div>
             <p className="subtitle">{t('subtitle')}</p>
+            
             {showWelcome && (
               <div className="fade-in">
                 <p className="tagline">{t('tagline')}</p>
@@ -359,25 +247,92 @@ export default function App() {
             )}
           </header>
 
-          {/* Input section */}
           <div className="input-section">
             <div className="input-wrapper">
-              <textarea
-                placeholder={t('placeholder')}
-                value={query}
+              <textarea placeholder={t('placeholder')} value={query}
                 onChange={e => setQuery(e.target.value)}
                 onKeyDown={e => { if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); plan(); } }}
-                rows={2}
-                disabled={loading}
-              />
+                rows={2} disabled={loading} />
               <div className="input-footer">
                 <span className="hint">{t('hint')}</span>
                 <button className="send-btn" onClick={() => plan()} disabled={loading || !query.trim()}>
                   {loading ? t('planning_btn') : <><Icons.Send /> {t('plan_btn')}</>}
                 </button>
               </div>
+
+              <details className="vessel-mini">
+                <summary>{t('vessel_profile')}</summary>
+                <div className="vessel-mini-grid">
+                  <div className="vessel-field">
+                    <label>{t('vessel_type')}</label>
+                    <select
+                      value={vessel.type}
+                      onChange={(e) => setVessel(v => ({ ...v, type: e.target.value }))}
+                      disabled={loading}
+                    >
+                      <option value="motorboat">{t('vessel_motorboat')}</option>
+                      <option value="sailboat">{t('vessel_sailboat')}</option>
+                    </select>
+                  </div>
+
+                  <div className="vessel-field">
+                    <label title={t('vessel_draft_help')}>{t('vessel_draft')}</label>
+                    <input
+                      type="number" step="0.1" min="0"
+                      value={vessel.draft_m}
+                      onChange={(e) => setVessel(v => ({ ...v, draft_m: Number(e.target.value) }))}
+                      disabled={loading}
+                    />
+                  </div>
+
+                  <div className="vessel-field">
+                    <label title={t('vessel_air_draft_help')}>{t('vessel_air_draft')}</label>
+                    <input
+                      type="number" step="0.1" min="0"
+                      value={vessel.air_draft_m}
+                      onChange={(e) => setVessel(v => ({ ...v, air_draft_m: Number(e.target.value) }))}
+                      disabled={loading}
+                    />
+                  </div>
+
+                  <div className="vessel-field">
+                    <label title={t('vessel_speed_help')}>{t('vessel_speed')}</label>
+                    <input
+                      type="number" step="0.1" min="0"
+                      value={vessel.cruise_speed_kn}
+                      onChange={(e) => setVessel(v => ({ ...v, cruise_speed_kn: Number(e.target.value) }))}
+                      disabled={loading}
+                    />
+                  </div>
+                
+                  <div className="vessel-field vessel-check">
+                    <label style={{ display: 'flex', alignItems: 'center', gap: 8, marginTop: 2 }}>
+                      <input
+                        type="checkbox"
+                        checked={!!vessel.water_only}
+                        onChange={(e) => setVessel(v => ({ ...v, water_only: e.target.checked }))}
+                        disabled={loading}
+                      />
+                      {t('water_only', { defaultValue: 'Samo po vodi (water-only)' })}
+                    </label>
+                  </div>
+
+                {safeRouteError && (
+                  <div className="safe-route-msg">
+                    <span>⚠️ {t('safe_route_failed', { defaultValue: 'Varna plovna pot ni uspela.' })}</span>
+                    <button type="button" className="mini-btn" onClick={() => fetchSafeRoute(itinerary?.days)} disabled={safeRouteLoading || !itinerary}>
+                      {safeRouteLoading ? t('loading', { defaultValue: 'Nalagam…' }) : t('retry', { defaultValue: 'Poskusi znova' })}
+                    </button>
+                  </div>
+                )}
+                {safeRouteLoading && !safeRouteError && itinerary && (
+                  <div className="safe-route-msg">
+                    <span>🧭 {t('safe_route_loading', { defaultValue: 'Računam varno plovno pot…' })}</span>
+                  </div>
+                )}
+              </details>
+
             </div>
-            <VesselRow vessel={vessel} setVessel={setVessel} disabled={loading} />
             {showWelcome && Array.isArray(suggestions) && (
               <div className="suggestions fade-in">
                 {suggestions.map((sg, i) => (
@@ -398,9 +353,7 @@ export default function App() {
 
           {loading && streamText && (
             <div className="loading fade-in">
-              <div className="dots">
-                {[0,1,2].map(i => <div key={i} className="dot" style={{ animationDelay: `${i*0.2}s` }} />)}
-              </div>
+              <div className="dots">{[0,1,2].map(i => <div key={i} className="dot" style={{ animationDelay: `${i*0.2}s` }} />)}</div>
               <p>{streamText}</p>
             </div>
           )}
@@ -423,51 +376,36 @@ export default function App() {
                 </h2>
                 <p className="trip-summary">{itinerary.summary}</p>
                 <div className="meta-grid">
-                  <div className="meta-item">
-                    <div className="meta-label">{t('duration')}</div>
-                    <div className="meta-value">{itinerary.days?.length} {t('days_label')}</div>
-                  </div>
-                  <div className="meta-item">
-                    <div className="meta-label">{t('distance')}</div>
-                    <div className="meta-value">{itinerary.totalDistance}</div>
-                  </div>
-                  <div className="meta-item">
-                    <div className="meta-label">{t('difficulty')}</div>
-                    <div className="meta-value">{itinerary.difficulty}</div>
-                  </div>
-                  <div className="meta-item">
-                    <div className="meta-label">{t('best_for')}</div>
-                    <div className="meta-value">{itinerary.bestFor}</div>
-                  </div>
+                  <div className="meta-item"><div className="meta-label">{t('duration')}</div><div className="meta-value">{itinerary.days?.length} {t('days_label')}</div></div>
+                  <div className="meta-item"><div className="meta-label">{t('distance')}</div><div className="meta-value">{itinerary.totalDistance}</div></div>
+                  <div className="meta-item"><div className="meta-label">{t('difficulty')}</div><div className="meta-value">{itinerary.difficulty}</div></div>
+                  <div className="meta-item"><div className="meta-label">{t('best_for')}</div><div className="meta-value">{itinerary.bestFor}</div></div>
                   {itinerary.estimatedBudget && (
-                    <div className="meta-item">
-                      <div className="meta-label">{t('budget')}</div>
-                      <div className="meta-value">
-                        {typeof itinerary.estimatedBudget === 'string'
-                          ? itinerary.estimatedBudget
-                          : `${itinerary.estimatedBudget.low} – ${itinerary.estimatedBudget.high}`}
-                      </div>
-                    </div>
+                    <div className="meta-item"><div className="meta-label">{t('budget')}</div><div className="meta-value">
+                      {typeof itinerary.estimatedBudget === 'string' ? itinerary.estimatedBudget : `${itinerary.estimatedBudget.low} – ${itinerary.estimatedBudget.high}`}
+                    </div></div>
                   )}
                 </div>
               </div>
 
               {itinerary.warnings?.length > 0 && (
-                <div className="warning-box">
-                  {itinerary.warnings.map((w, i) => <div key={i}>⚠️ {w}</div>)}
-                </div>
+                <div className="warning-box">{itinerary.warnings.map((w, i) => <div key={i}>⚠️ {w}</div>)}</div>
               )}
 
-              {/* Action buttons */}
+              {/* Action buttons row */}
               <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 8, marginBottom: 16 }}>
                 <PDFExportButton itinerary={itinerary} />
-                <SavedTrips currentItinerary={itinerary} currentQuery={query} onLoad={loadSavedTrip} />
+                <SavedTrips
+                  currentItinerary={itinerary}
+                  currentQuery={query}
+                  onLoad={loadSavedTrip}
+                />
               </div>
 
-              {/* View tabs */}
+              {/* View tabs: Itinerary / Map / Wind */}
               <ViewTabs active={viewTab} onChange={setViewTab} />
 
-              {/* Map view */}
+              {/* MAP VIEW */}
               {viewTab === 'map' && (
                 <>
                   {safeRouteLoading && (
@@ -475,25 +413,27 @@ export default function App() {
                       🛡️ Izračunavam varno plovbno pot...
                     </div>
                   )}
-                  <MapView itinerary={itinerary} activeDay={activeDay} onDaySelect={setActiveDay} safeRoute={safeRoute} />
+                  <div style={{ display: 'flex', justifyContent: 'flex-end', marginBottom: 8 }}>
+                    <label style={{ fontSize: 12, opacity: 0.85, display: 'flex', gap: 8, alignItems: 'center' }}>
+                      <input type="checkbox" checked={debugOverlay} onChange={(e) => setDebugOverlay(e.target.checked)} />
+                      Debug overlay
+                    </label>
+                  </div>
+                  <MapView itinerary={itinerary} activeDay={activeDay} onDaySelect={setActiveDay} safeRoute={safeRoute} debugOverlay={debugOverlay} />
                 </>
               )}
 
-              {/* Wind view */}
+              {/* WIND VIEW */}
               {viewTab === 'wind' && (
                 <WindChart itinerary={itinerary} activeDay={activeDay} onDaySelect={setActiveDay} />
               )}
 
-              {/* Itinerary view */}
+              {/* ITINERARY VIEW */}
               {viewTab === 'itinerary' && (
                 <>
                   <div className="day-nav">
                     {itinerary.days?.map((d, i) => (
-                      <button
-                        key={i}
-                        className={`day-tab ${i === activeDay ? 'active' : ''}`}
-                        onClick={() => setActiveDay(i)}
-                      >
+                      <button key={i} className={`day-tab ${i === activeDay ? 'active' : ''}`} onClick={() => setActiveDay(i)}>
                         {t('day')} {d.day}
                       </button>
                     ))}
@@ -504,83 +444,58 @@ export default function App() {
                       <h3 className="day-title">{day.title}</h3>
                       <div className="day-route">
                         <Icons.Compass /> {day.distance} • {day.sailTime}
-                        {day.departureTime && (
-                          <span className="dim"> • {t('depart')} {day.departureTime}</span>
-                        )}
+                        {day.departureTime && <span className="dim"> • {t('depart')} {day.departureTime}</span>}
                       </div>
                       <div className="info-grid">
                         <div className="info-card">
                           <div className="info-card-title"><Icons.Sun /> {t('weather')}</div>
                           <div className="info-card-value">
-                            {weather.condition} • {weather.temp}°C<br />
-                            <span className="wind-row"><Icons.Wind /> {weather.wind}</span><br />
+                            {weather.condition} • {weather.temp}°C<br/>
+                            <span className="wind-row"><Icons.Wind /> {weather.wind}</span><br/>
                             <span className="dim">{t('waves')}: {weather.waves}</span>
-                            {weather.safety && (
-                              <><br /><span className="dim">{weather.safety}</span></>
-                            )}
+                            {weather.safety && <><br/><span className="dim">{weather.safety}</span></>}
                           </div>
                         </div>
                         <div className="info-card">
                           <div className="info-card-title"><Icons.Anchor /> {t('berth')}</div>
                           <div className="info-card-value">
-                            {marina.name && (
-                              <div>⚓ {marina.name}{marina.price ? ` (${marina.price})` : ''}</div>
-                            )}
-                            {anchorage.name && (
-                              <div style={{ marginTop: marina.name ? 6 : 0 }}>
-                                🏖️ {anchorage.name}
-                                {anchorage.notes && (
-                                  <><br /><span className="dim">{anchorage.notes}</span></>
-                                )}
-                              </div>
-                            )}
+                            {marina.name && <div>⚓ {marina.name}{marina.price ? ` (${marina.price})` : ''}</div>}
+                            {anchorage.name && <div style={{ marginTop: marina.name ? 6 : 0 }}>🏖️ {anchorage.name}{anchorage.notes ? <><br/><span className="dim">{anchorage.notes}</span></> : ''}</div>}
                           </div>
                         </div>
                         <div className="info-card">
                           <div className="info-card-title">🍽️ {t('dinner')}</div>
                           <div className="info-card-value">
                             {restaurant.name || t('ask_locals')}
-                            {restaurant.dish && (
-                              <><br /><span className="dim">{t('try_dish')}: {restaurant.dish}</span></>
-                            )}
-                            {restaurant.price && (
-                              <span className="dim" style={{ marginLeft: 6 }}>{restaurant.price}</span>
-                            )}
+                            {restaurant.dish && <><br/><span className="dim">{t('try_dish')}: {restaurant.dish}</span></>}
+                            {restaurant.price && <span className="dim" style={{ marginLeft: 6 }}>{restaurant.price}</span>}
                           </div>
                         </div>
                       </div>
                       {day.highlights?.length > 0 && (
                         <div className="highlights">
                           <div className="section-label">{t('highlights')}</div>
-                          <div className="chip-list">
-                            {day.highlights.map((h, i) => (
-                              <span key={i} className="highlight-chip">{h}</span>
-                            ))}
-                          </div>
+                          <div className="chip-list">{day.highlights.map((h, i) => <span key={i} className="highlight-chip">{h}</span>)}</div>
                         </div>
                       )}
-                      {day.tip && (
-                        <div className="tip-box">
-                          <strong>⚓ {t('captains_tip')}:</strong> {day.tip}
-                        </div>
-                      )}
+                      {day.tip && <div className="tip-box"><strong>⚓ {t('captains_tip')}:</strong> {day.tip}</div>}
                     </div>
                   )}
                 </>
               )}
 
-              {/* AI Chat */}
+              {/* AI Chat - always visible below tabs */}
               <div style={{ marginTop: 16 }}>
                 <AIChat itinerary={itinerary} language={i18n.language} />
               </div>
+                          </div>
+
 
               {itinerary.packingTips?.length > 0 && (
                 <div className="trip-header" style={{ marginTop: 16 }}>
                   <div className="section-label">{t('packing')}</div>
                   <div className="chip-list" style={{ marginTop: 8 }}>
-                    {itinerary.packingTips.map((tip, i) => (
-                      <span key={i} className="highlight-chip">🎒 {tip}</span>
-                    ))}
+                    {itinerary.packingTips.map((tip, i) => <span key={i} className="highlight-chip">🎒 {tip}</span>)}
                   </div>
                 </div>
               )}
@@ -588,10 +503,10 @@ export default function App() {
               <div style={{ textAlign: 'center' }}>
                 <button className="new-trip-btn" onClick={reset}>{t('new_trip_btn')}</button>
               </div>
-
             </div>
           )}
 
+          {/* Saved trips accessible from welcome screen too */}
           {!itinerary && !loading && (
             <div style={{ marginTop: 8 }}>
               <SavedTrips onLoad={loadSavedTrip} />
@@ -602,7 +517,6 @@ export default function App() {
             <p>{t('footer')}</p>
             <p className="footer-sub">{t('footer_sub')}</p>
           </footer>
-
         </div>
       </div>
     </>

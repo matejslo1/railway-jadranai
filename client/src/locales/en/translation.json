@@ -57,5 +57,6 @@
   "vessel_optional": "optional",
   "vessel_draft_help": "How deep the boat sits below the waterline.",
   "vessel_air_draft_help": "Highest point above the waterline (e.g., top of mast).",
-  "vessel_speed_help": "Used for ETA and day planning."
+  "vessel_speed_help": "Used for ETA and day planning.",
+  "water_only": "Water-only routing (avoid land)"
 }

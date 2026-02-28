@@ -82,7 +82,7 @@ router.post('/chat', tripLimiter, async (req, res) => {
 // Generates safe waypoints for an existing itinerary based on vessel characteristics
 router.post('/safe-route', tripLimiter, async (req, res) => {
   try {
-    const { days, vessel, vesselDraft, vesselType, vesselAirDraft, cruiseSpeedKn } = req.body;
+    const { days, vessel, vesselDraft, vesselType, vesselAirDraft, cruiseSpeedKn, waterOnly, debug } = req.body;
     if (!days || !Array.isArray(days) || days.length === 0) {
       return res.status(400).json({ error: 'days array is required' });
     }
@@ -91,7 +91,7 @@ router.post('/safe-route', tripLimiter, async (req, res) => {
     const airDraft = parseFloat(vessel?.air_draft_m ?? vesselAirDraft) || null;
     const cruiseSpeed = parseFloat(vessel?.cruise_speed_kn ?? cruiseSpeedKn) || null;
     console.log(`[SafeRoute] ${days.length} legs, draft=${draft}m, type=${type}` + (airDraft ? `, airDraft=${airDraft}m` : '') + (cruiseSpeed ? `, speed=${cruiseSpeed}kn` : ''));
-    const safeRoute = await generateSafeRoute(days, { draft_m: draft, type, air_draft_m: airDraft, cruise_speed_kn: cruiseSpeed });
+    const safeRoute = await generateSafeRoute(days, { draft_m: draft, type, air_draft_m: airDraft, cruise_speed_kn: cruiseSpeed }, { waterOnly: !!waterOnly, debug: !!debug });
     console.log(`[SafeRoute] Generated ${safeRoute.length} legs with waypoints`);
     res.json({ success: true, safeRoute });
   } catch (err) {

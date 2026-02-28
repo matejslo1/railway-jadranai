@@ -34,13 +34,13 @@ export async function chatWithTrip(message, itinerary, language = 'en') {
   return data.reply;
 }
 
-export async function getSafeRoute(days, vesselOrDraft = 2.0, vesselType = 'sailboat', vesselAirDraft) {
+export async function getSafeRoute(days, vesselOrDraft = 2.0, vesselType = 'sailboat', vesselAirDraft, opts = {}) {
   // Backwards compatible: accept either a vessel object or (draft, type)
   const vessel = (vesselOrDraft && typeof vesselOrDraft === 'object')
     ? vesselOrDraft
     : { draft_m: vesselOrDraft, type: vesselType, air_draft_m: vesselAirDraft };
 
-  const data = await postJson('/api/trips/safe-route', { days, vessel });
+  const data = await postJson('/api/trips/safe-route', { days, vessel, waterOnly: !!opts.waterOnly, debug: !!opts.debug });
   return data.safeRoute;
 }
 

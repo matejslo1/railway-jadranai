@@ -57,5 +57,6 @@
   "vessel_optional": "opcionalno",
   "vessel_draft_help": "Koliko je plovilo duboko ispod vodne linije.",
   "vessel_air_draft_help": "Najviša točka iznad vodne linije (npr. vrh jarbola).",
-  "vessel_speed_help": "Koristi se za ETA i planiranje etapa."
+  "vessel_speed_help": "Koristi se za ETA i planiranje etapa.",
+  "water_only": "Samo po vodi (izbjegavaj kopno)"
 }

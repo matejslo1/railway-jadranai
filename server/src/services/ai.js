@@ -165,19 +165,24 @@ AREAS TO AVOID:
 - Inside Kornati without local knowledge: many submerged rocks
 `;
 
-async function generateSafeRoute(days, vessel = { draft_m: 2.0, type: 'sailboat' }) {
+async function generateSafeRoute(days, vessel = { draft_m: 2.0, type: 'sailboat' }, opts = {}) {
   // 1) Deterministic land-avoid router (fast, no API keys)
   try {
-    const safeLegs = generateSafeRouteLegs(days);
+    const safeLegs = generateSafeRouteLegs(days, opts);
     // If we produced waypoints, return them.
-    if (Array.isArray(safeLegs) && safeLegs.some(l => (l.waypoints || []).length >= 2)) {
+    if (Array.isArray(safeLegs) && safeLegs.some(l => (l.waypoints || []).length >= 1)) {
       return safeLegs;
     }
   } catch (e) {
     console.warn('[SafeRoute] Deterministic router failed, falling back to AI:', e.message);
   }
 
-  // 2) AI fallback (can still be used if you prefer; requires CLAUDE_API_KEY)
+    // If user explicitly wants water-only, do NOT fall back to AI curves.
+  if (opts && opts.waterOnly) {
+    return generateSafeRouteLegs(days, opts);
+  }
+
+// 2) AI fallback (can still be used if you prefer; requires CLAUDE_API_KEY)
   if (!claudeApiKey) {
     // No AI key: return straight-ish curve fallback
     return (days || []).map(d => ({
