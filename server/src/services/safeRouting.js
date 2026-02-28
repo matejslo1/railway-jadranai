@@ -111,7 +111,6 @@ async function snapItineraryToWater(itinerary) {
 // Implementation: A* over a water grid constrained by a buffered landmask.
 // NOTE: This is NOT an official nautical router (no ENC/bathymetry), but it reliably avoids coastline/islands.
 
-const topojson = require('topojson-client');
 
 // Natural Earth land polygons via world-atlas TopoJSON.
 // Prefer 50m; fall back to 110m.
