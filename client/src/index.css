@@ -134,3 +134,19 @@ body { background: var(--navy); color: var(--text); font-family: 'Outfit', sans-
 .leaflet-popup-tip { background: #0d2035; }
 .leaflet-control-zoom a { background: #0d2035 !important; color: #3b9ece !important; border-color: rgba(59,158,206,0.3) !important; }
 .jadran-marker { background: none !important; border: none !important; box-shadow: none !important; }
+
+
+/* Vessel profile */
+.vessel-section { margin-top: 12px; background: rgba(20,40,65,0.55); border: 1px solid var(--ocean-border); border-radius: 14px; padding: 12px; backdrop-filter: blur(18px); }
+.vessel-title { color: var(--text-dim); font-size: 12px; letter-spacing: 1px; text-transform: uppercase; margin-bottom: 10px; }
+.vessel-grid { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 10px; }
+.vessel-field { display: flex; flex-direction: column; gap: 6px; }
+.vessel-field-wide { grid-column: span 3; }
+.vessel-field label { color: var(--text); font-size: 12px; }
+.vessel-optional { color: #5a7d95; font-weight: 400; }
+.vessel-field input, .vessel-field select { background: rgba(20,40,65,0.8); border: 1px solid var(--ocean-border); border-radius: 10px; padding: 10px 12px; color: var(--text-bright); font-family: 'Outfit', sans-serif; outline: none; }
+.vessel-field input::placeholder { color: #3d6580; }
+@media (max-width: 820px) {
+  .vessel-grid { grid-template-columns: 1fr; }
+  .vessel-field-wide { grid-column: span 1; }
+}

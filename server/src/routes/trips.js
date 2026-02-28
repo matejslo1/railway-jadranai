@@ -35,7 +35,7 @@ function detectStartLocation(query) {
 // POST /api/trips/generate
 router.post('/generate', tripLimiter, async (req, res) => {
   try {
-    const { query, startLat, startLng, language } = req.body;
+    const { query, startLat, startLng, language, vessel } = req.body;
     if (!query || query.trim().length < 10) {
       return res.status(400).json({ error: 'Please describe your trip in more detail (at least 10 characters).' });
     }
@@ -49,7 +49,7 @@ router.post('/generate', tripLimiter, async (req, res) => {
     }
     console.log(`[Trip] "${query.substring(0, 80)}" from ${startName} lang=${lang}`);
     const weather = await getCombinedForecast(lat, lng, 7);
-    const itinerary = await generateTrip(query, weather, startName, lang);
+    const itinerary = await generateTrip(query, weather, startName, lang, vessel);
     console.log(`[Trip] Generated: "${itinerary.tripTitle}" — ${itinerary.days?.length} days`);
     res.json({
       success: true, itinerary,
@@ -82,14 +82,16 @@ router.post('/chat', tripLimiter, async (req, res) => {
 // Generates safe waypoints for an existing itinerary based on vessel characteristics
 router.post('/safe-route', tripLimiter, async (req, res) => {
   try {
-    const { days, vesselDraft, vesselType } = req.body;
+    const { days, vessel, vesselDraft, vesselType, vesselAirDraft, cruiseSpeedKn } = req.body;
     if (!days || !Array.isArray(days) || days.length === 0) {
       return res.status(400).json({ error: 'days array is required' });
     }
-    const draft = parseFloat(vesselDraft) || 2.0;
-    const type = vesselType || 'sailboat';
-    console.log(`[SafeRoute] ${days.length} legs, draft=${draft}m, type=${type}`);
-    const safeRoute = await generateSafeRoute(days, draft, type);
+    const draft = parseFloat(vessel?.draft_m ?? vesselDraft) || 2.0;
+    const type = (vessel?.type ?? vesselType) || 'sailboat';
+    const airDraft = parseFloat(vessel?.air_draft_m ?? vesselAirDraft) || null;
+    const cruiseSpeed = parseFloat(vessel?.cruise_speed_kn ?? cruiseSpeedKn) || null;
+    console.log(`[SafeRoute] ${days.length} legs, draft=${draft}m, type=${type}` + (airDraft ? `, airDraft=${airDraft}m` : '') + (cruiseSpeed ? `, speed=${cruiseSpeed}kn` : ''));
+    const safeRoute = await generateSafeRoute(days, { draft_m: draft, type, air_draft_m: airDraft, cruise_speed_kn: cruiseSpeed });
     console.log(`[SafeRoute] Generated ${safeRoute.length} legs with waypoints`);
     res.json({ success: true, safeRoute });
   } catch (err) {

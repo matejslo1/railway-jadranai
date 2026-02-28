@@ -25,8 +25,8 @@ async function postJson(path, body) {
 }
 
 // --- Trips ---
-export function generateTrip(query, language = 'en', startLat, startLng) {
-  return postJson('/api/trips/generate', { query, language, startLat, startLng });
+export function generateTrip(query, language = 'en', startLat, startLng, vessel) {
+  return postJson('/api/trips/generate', { query, language, startLat, startLng, vessel });
 }
 
 export async function chatWithTrip(message, itinerary, language = 'en') {
@@ -34,8 +34,13 @@ export async function chatWithTrip(message, itinerary, language = 'en') {
   return data.reply;
 }
 
-export async function getSafeRoute(days, vesselDraft = 2.0, vesselType = 'sailboat') {
-  const data = await postJson('/api/trips/safe-route', { days, vesselDraft, vesselType });
+export async function getSafeRoute(days, vesselOrDraft = 2.0, vesselType = 'sailboat', vesselAirDraft) {
+  // Backwards compatible: accept either a vessel object or (draft, type)
+  const vessel = (vesselOrDraft && typeof vesselOrDraft === 'object')
+    ? vesselOrDraft
+    : { draft_m: vesselOrDraft, type: vesselType, air_draft_m: vesselAirDraft };
+
+  const data = await postJson('/api/trips/safe-route', { days, vessel });
   return data.safeRoute;
 }
 

@@ -46,5 +46,16 @@
     "3 Tage rund um Hvar und Vis, Fokus auf Kulinarik"
   ],
   "footer": "Jadran AI — Ihr Adriatischer Co-Kapitän",
-  "footer_sub": "Live-Wetter: Open-Meteo • KI: Claude • v1.0"
+  "footer_sub": "Live-Wetter: Open-Meteo • KI: Claude • v1.0",
+  "vessel_profile": "Bootsprofil",
+  "vessel_type": "Bootstyp",
+  "vessel_motorboat": "Motorboot (Gliser)",
+  "vessel_sailboat": "Segelboot",
+  "vessel_draft": "Tiefgang (m)",
+  "vessel_air_draft": "Höhe über Wasserlinie (m)",
+  "vessel_speed": "Reisegeschwindigkeit (kn)",
+  "vessel_optional": "optional",
+  "vessel_draft_help": "Wie tief das Boot unter die Wasserlinie reicht.",
+  "vessel_air_draft_help": "Höchster Punkt über der Wasserlinie (z. B. Mastspitze).",
+  "vessel_speed_help": "Für ETA und Etappenplanung."
 }

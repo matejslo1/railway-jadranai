@@ -46,5 +46,16 @@
     "3 days around Hvar and Vis islands, food focused"
   ],
   "footer": "Jadran AI — Your Adriatic Co-Captain",
-  "footer_sub": "Live weather from Open-Meteo • AI by Claude • v1.0"
+  "footer_sub": "Live weather from Open-Meteo • AI by Claude • v1.0",
+  "vessel_profile": "Vessel profile",
+  "vessel_type": "Vessel type",
+  "vessel_motorboat": "Motorboat (gliser)",
+  "vessel_sailboat": "Sailboat (jadrnica)",
+  "vessel_draft": "Draft (m)",
+  "vessel_air_draft": "Air draft / height (m)",
+  "vessel_speed": "Cruise speed (kn)",
+  "vessel_optional": "optional",
+  "vessel_draft_help": "How deep the boat sits below the waterline.",
+  "vessel_air_draft_help": "Highest point above the waterline (e.g., top of mast).",
+  "vessel_speed_help": "Used for ETA and day planning."
 }

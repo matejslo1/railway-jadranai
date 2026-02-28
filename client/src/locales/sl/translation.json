@@ -46,5 +46,16 @@
     "3 dni okoli Hvara in Visa, fokus na hrani"
   ],
   "footer": "Jadran AI — Vaš sokapetan na Jadranu",
-  "footer_sub": "Živo vreme: Open-Meteo • UI: Claude • v1.0"
+  "footer_sub": "Živo vreme: Open-Meteo • UI: Claude • v1.0",
+  "vessel_profile": "Profil plovila",
+  "vessel_type": "Tip plovila",
+  "vessel_motorboat": "Gliser / motorni čoln",
+  "vessel_sailboat": "Jadrnica",
+  "vessel_draft": "Ugrez (m)",
+  "vessel_air_draft": "Višina nad vodno linijo (m)",
+  "vessel_speed": "Potovalna hitrost (kn)",
+  "vessel_optional": "neobvezno",
+  "vessel_draft_help": "Kako globoko plovilo sega pod vodno linijo.",
+  "vessel_air_draft_help": "Najvišja točka nad vodno linijo (npr. vrh jambora).",
+  "vessel_speed_help": "Uporablja se za izračun časa in plan etap."
 }

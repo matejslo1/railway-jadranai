@@ -91,7 +91,7 @@ async function callClaude(system, userMessage, maxTokens = 4000) {
   return data.content?.[0]?.text || '';
 }
 
-async function generateTrip(userQuery, weatherData, startLocation, language = 'en') {
+async function generateTrip(userQuery, weatherData, startLocation, language = 'en', vessel) {
   const text = await callClaude(buildSystemPrompt(weatherData, startLocation, language), userQuery, 4000);
   const clean = text.replace(/```json|```/g, '').trim();
   try {
@@ -163,13 +163,20 @@ AREAS TO AVOID:
 - Inside Kornati without local knowledge: many submerged rocks
 `;
 
-async function generateSafeRoute(days, vesselDraft = 2.0, vesselType = 'sailboat') {
-  const system = `You are a professional Adriatic sailing navigator with 30 years of experience. 
+async function generateSafeRoute(days, vessel = { draft_m: 2.0, type: 'sailboat' }) {
+  const system = `You are a professional Adriatic sailing navigator with 30 years of experience.
 Your task is to generate a realistic, curved sailing route with intermediate GPS waypoints for each leg.
+
+VESSEL CONSTRAINTS:
+- type: ${vessel.type || 'sailboat'}
+- draft_m: ${vessel.draft_m ?? 2.0}
+- air_draft_m: ${vessel.air_draft_m ?? 'unknown'}
+- cruise_speed_kn: ${vessel.cruise_speed_kn ?? 'unknown'}
+
 
 You MUST respond ONLY with valid JSON — no markdown, no backticks, no explanation. Pure JSON only.
 
-VESSEL: ${vesselType}, draft ${vesselDraft}m
+VESSEL: ${vessel.type}, draft ${vessel.draft_m}m
 
 ${ADRIATIC_SAFE_CHANNELS}
 

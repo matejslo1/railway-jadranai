@@ -46,5 +46,16 @@
     "3 giorni intorno a Hvar e Vis, focus sul cibo"
   ],
   "footer": "Jadran AI — Il Tuo Co-Capitano in Adriatico",
-  "footer_sub": "Meteo: Open-Meteo • AI: Claude • v1.0"
+  "footer_sub": "Meteo: Open-Meteo • AI: Claude • v1.0",
+  "vessel_profile": "Profilo dell’imbarcazione",
+  "vessel_type": "Tipo di imbarcazione",
+  "vessel_motorboat": "Motoscafo (gliser)",
+  "vessel_sailboat": "Barca a vela",
+  "vessel_draft": "Pescaggio (m)",
+  "vessel_air_draft": "Altezza sopra il livello dell’acqua (m)",
+  "vessel_speed": "Velocità di crociera (kn)",
+  "vessel_optional": "opzionale",
+  "vessel_draft_help": "Quanto l’imbarcazione pesca sotto la linea di galleggiamento.",
+  "vessel_air_draft_help": "Punto più alto sopra la linea di galleggiamento (es. cima dell’albero).",
+  "vessel_speed_help": "Usato per ETA e pianificazione giornaliera."
 }
