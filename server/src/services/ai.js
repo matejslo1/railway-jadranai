@@ -167,20 +167,18 @@ AREAS TO AVOID:
 
 async function generateSafeRoute(days, vessel = { draft_m: 2.0, type: 'sailboat' }, opts = {}) {
   // 1) Deterministic land-avoid router (fast, no API keys)
-  try {
-    const safeLegs = generateSafeRouteLegs(days, opts);
-    // If we produced waypoints, return them.
-    if (Array.isArray(safeLegs) && safeLegs.some(l => (l.waypoints || []).length >= 1)) {
-      return safeLegs;
-    }
-  } catch (e) {
-    console.warn('[SafeRoute] Deterministic router failed, falling back to AI:', e.message);
-  }
+// Always try deterministic routing first. It never throws; legs can be marked failed.
+const deterministicLegs = generateSafeRouteLegs(days, opts);
 
-    // If user explicitly wants water-only, do NOT fall back to AI curves.
-  if (opts && opts.waterOnly) {
-    return generateSafeRouteLegs(days, opts);
-  }
+// If user explicitly wants water-only, return deterministic results (no AI / straight-line fallback).
+if (opts && opts.waterOnly) {
+  return deterministicLegs;
+}
+
+// If deterministic produced at least one waypoint, use it.
+if (Array.isArray(deterministicLegs) && deterministicLegs.some(l => (l.waypoints || []).length >= 1)) {
+  return deterministicLegs;
+}
 
 // 2) AI fallback (can still be used if you prefer; requires CLAUDE_API_KEY)
   if (!claudeApiKey) {

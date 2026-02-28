@@ -171,7 +171,7 @@ const [error, setError] = useState(null);
     if (!days || !Array.isArray(days) || days.length === 0) return Promise.resolve(null);
     setSafeRouteLoading(true);
     setSafeRouteError(null);
-    return getSafeRoute(days, vessel, undefined, undefined, { waterOnly: !!vessel.water_only, debug: !!debugOverlay })
+    return getSafeRoute(days, vessel, undefined, undefined, { waterOnly: true, debug: !!debugOverlay })
       .then((sr) => {
         setSafeRoute(sr);
         return sr;
@@ -270,15 +270,17 @@ const [error, setError] = useState(null);
                       onChange={(e) => setVessel(v => ({ ...v, type: e.target.value }))}
                       disabled={loading}
                     >
-                      <option value="motorboat">{t('vessel_motorboat')}</option>
-                      <option value="sailboat">{t('vessel_sailboat')}</option>
+                      <option value="sailboat">{t('sailboat', { defaultValue: 'Jadrnica' })}</option>
+                      <option value="motorboat">{t('motorboat', { defaultValue: 'Motorno plovilo' })}</option>
                     </select>
                   </div>
 
                   <div className="vessel-field">
-                    <label title={t('vessel_draft_help')}>{t('vessel_draft')}</label>
+                    <label>{t('draft_m', { defaultValue: 'Ugrez (m)' })}</label>
                     <input
-                      type="number" step="0.1" min="0"
+                      type="number"
+                      step="0.1"
+                      min="0"
                       value={vessel.draft_m}
                       onChange={(e) => setVessel(v => ({ ...v, draft_m: Number(e.target.value) }))}
                       disabled={loading}
@@ -286,47 +288,40 @@ const [error, setError] = useState(null);
                   </div>
 
                   <div className="vessel-field">
-                    <label title={t('vessel_air_draft_help')}>{t('vessel_air_draft')}</label>
+                    <label>{t('air_draft_m', { defaultValue: 'Višina nad vodno linijo (m)' })}</label>
                     <input
-                      type="number" step="0.1" min="0"
-                      value={vessel.air_draft_m}
-                      onChange={(e) => setVessel(v => ({ ...v, air_draft_m: Number(e.target.value) }))}
+                      type="number"
+                      step="0.1"
+                      min="0"
+                      value={vessel.air_draft_m ?? ''}
+                      onChange={(e) => setVessel(v => ({ ...v, air_draft_m: e.target.value === '' ? null : Number(e.target.value) }))}
                       disabled={loading}
                     />
                   </div>
 
                   <div className="vessel-field">
-                    <label title={t('vessel_speed_help')}>{t('vessel_speed')}</label>
+                    <label>{t('cruise_speed_kn', { defaultValue: 'Potovalna hitrost (kn)' })}</label>
                     <input
-                      type="number" step="0.1" min="0"
-                      value={vessel.cruise_speed_kn}
-                      onChange={(e) => setVessel(v => ({ ...v, cruise_speed_kn: Number(e.target.value) }))}
+                      type="number"
+                      step="0.1"
+                      min="0"
+                      value={vessel.cruise_speed_kn ?? ''}
+                      onChange={(e) => setVessel(v => ({ ...v, cruise_speed_kn: e.target.value === '' ? null : Number(e.target.value) }))}
                       disabled={loading}
                     />
-                  </div>
-                
-                  <div className="vessel-field vessel-check">
-                    <label style={{ display: 'flex', alignItems: 'center', gap: 8, marginTop: 2 }}>
-                      <input
-                        type="checkbox"
-                        checked={!!vessel.water_only}
-                        onChange={(e) => setVessel(v => ({ ...v, water_only: e.target.checked }))}
-                        disabled={loading}
-                      />
-                      {t('water_only', { defaultValue: 'Samo po vodi (water-only)' })}
-                    </label>
                   </div>
                 </div>
 
                 {safeRouteError && (
                   <div className="safe-route-msg">
                     <span>⚠️ {t('safe_route_failed', { defaultValue: 'Varna plovna pot ni uspela.' })}</span>
-                    <button type="button" className="mini-btn" onClick={() => fetchSafeRoute(itinerary?.days)} disabled={safeRouteLoading || !itinerary}>
-                      {safeRouteLoading ? t('loading', { defaultValue: 'Nalagam…' }) : t('retry', { defaultValue: 'Poskusi znova' })}
+                    <button className="btn btn-secondary" onClick={() => fetchSafeRoute(itinerary?.days)} disabled={loading || safeRouteLoading}>
+                      {t('retry', { defaultValue: 'Poskusi znova' })}
                     </button>
                   </div>
                 )}
-                {safeRouteLoading && !safeRouteError && itinerary && (
+
+                {!safeRouteError && safeRouteLoading && (
                   <div className="safe-route-msg">
                     <span>🧭 {t('safe_route_loading', { defaultValue: 'Računam varno plovno pot…' })}</span>
                   </div>

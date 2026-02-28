@@ -337,20 +337,28 @@ function generateSafeRouteLegs(days, opts = {}) {
   return (days || []).map(d => {
     const from = [Number(d.fromLat), Number(d.fromLng)];
     const to = [Number(d.toLat), Number(d.toLng)];
-        const built = buildSafeLeg(from, to, opts);
-    const wpsCoords = Array.isArray(built) ? built : (built.wps || []);
-    const debug = (!Array.isArray(built) && built.debug) ? built.debug : null;
-    const failed = (wpsCoords.length === 0) && crossesLand(from, to);
 
-    const waypoints = wpsCoords.map((c, idx) => ({
-      lat: Number(c[0].toFixed(5)),
-      lng: Number(c[1].toFixed(5)),
-      note: idx === 0 ? 'safe route' : ''
-    }));
+    try {
+      const built = buildSafeLeg(from, to, opts);
+      const wpsCoords = Array.isArray(built) ? built : (built.wps || []);
+      const debug = (!Array.isArray(built) && built.debug) ? built.debug : null;
+      const failed = (wpsCoords.length === 0) && crossesLand(from, to);
 
-    const out = { day: d.day, from: d.from, to: d.to, waypoints, failed };
-    if (opts && opts.debug) out.debug = debug;
-    return out;
+      const waypoints = wpsCoords.map((c, idx) => ({
+        lat: Number(c[0].toFixed(5)),
+        lng: Number(c[1].toFixed(5)),
+        note: idx === 0 ? 'safe route' : ''
+      }));
+
+      const out = { day: d.day, from: d.from, to: d.to, waypoints, failed };
+      if (opts && opts.debug) out.debug = debug;
+      return out;
+    } catch (err) {
+      // Never crash the whole request because of one leg — report failure instead.
+      const out = { day: d.day, from: d.from, to: d.to, waypoints: [], failed: true, error: String(err?.message || err) };
+      if (opts && opts.debug) out.debug = { error: out.error };
+      return out;
+    }
   });
 }
 
