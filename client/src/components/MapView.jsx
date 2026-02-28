@@ -6,15 +6,29 @@ import { useEffect, useRef } from 'react';
 const MARINA_ICON = `<svg xmlns="http://www.w3.org/2000/svg" width="28" height="28" viewBox="0 0 24 24" fill="#3b9ece" stroke="white" stroke-width="1.5"><circle cx="12" cy="5" r="3"/><line x1="12" y1="8" x2="12" y2="21"/><path d="M5 12H2a10 10 0 0 0 20 0h-3"/></svg>`;
 const ANCHOR_ICON = `<svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="#d4a840" stroke="white" stroke-width="1.5"><circle cx="12" cy="5" r="3"/><line x1="12" y1="8" x2="12" y2="21"/><path d="M5 12H2a10 10 0 0 0 20 0h-3"/></svg>`;
 
-function windArrowSVG(direction, speed) {
+function windArrowSVG(dirDeg, speed) {
   const color = speed > 25 ? '#f87171' : speed > 15 ? '#fbbf24' : '#34d399';
   return `<svg xmlns="http://www.w3.org/2000/svg" width="32" height="32" viewBox="0 0 32 32">
     <circle cx="16" cy="16" r="14" fill="rgba(0,0,0,0.5)" stroke="${color}" stroke-width="1.5"/>
-    <g transform="rotate(${direction}, 16, 16)">
+    <g transform="rotate(${dirDeg}, 16, 16)">
       <polygon points="16,4 12,20 16,17 20,20" fill="${color}"/>
     </g>
     <text x="16" y="29" text-anchor="middle" font-size="7" fill="${color}" font-family="sans-serif">${speed}kt</text>
   </svg>`;
+}
+
+// Parse wind direction string like "NW 10-15kt" → degrees
+function windToDeg(windStr) {
+  const dirMap = { N:0, NNE:22, NE:45, ENE:67, E:90, ESE:112, SE:135, SSE:157, S:180, SSW:202, SW:225, WSW:247, W:270, WNW:292, NW:315, NNW:337 };
+  const match = windStr?.match(/^([A-Z]+)/);
+  return dirMap[match?.[1]] ?? 180;
+}
+
+// Parse wind speed "NW 10-15kt" → average kt
+function windToKt(windStr) {
+  const nums = windStr?.match(/\d+/g);
+  if (!nums) return 10;
+  return nums.length >= 2 ? Math.round((+nums[0] + +nums[1]) / 2) : +nums[0];
 }
 
 export default function MapView({ itinerary, activeDay, onDaySelect }) {
@@ -48,66 +62,61 @@ export default function MapView({ itinerary, activeDay, onDaySelect }) {
     const days = itinerary.days || [];
     if (!days.length) return;
 
-    const allCoords = [];
+    // Build strictly sequential route: fromLat of each day + toLat of last day
+    // This guarantees correct order with no crossing lines
+    const routeCoords = days
+      .filter(d => d.fromLat && d.fromLng)
+      .map(d => [d.fromLat, d.fromLng]);
+    const last = days[days.length - 1];
+    if (last?.toLat && last?.toLng) routeCoords.push([last.toLat, last.toLng]);
 
-    // Draw full route line (faint)
-    const routeCoords = days.map(d => [d.fromLat, d.fromLng]).filter(c => c[0] && c[1]);
-    if (days[days.length - 1]) {
-      const last = days[days.length - 1];
-      if (last.toLat && last.toLng) routeCoords.push([last.toLat, last.toLng]);
-    }
-
+    // Draw full faint dashed route
     if (routeCoords.length > 1) {
       const routeLine = L.polyline(routeCoords, {
-        color: 'rgba(59,158,206,0.3)',
+        color: 'rgba(59,158,206,0.25)',
         weight: 2,
         dashArray: '6 6',
       }).addTo(map);
       layersRef.current.push(routeLine);
-      routeCoords.forEach(c => allCoords.push(c));
     }
 
-    // Draw active day segment (bright)
-    const activeD = days[activeDay];
-    if (activeD?.fromLat && activeD?.toLat) {
-      const activeLine = L.polyline(
-        [[activeD.fromLat, activeD.fromLng], [activeD.toLat, activeD.toLng]],
-        { color: '#3b9ece', weight: 4, opacity: 0.9 }
-      ).addTo(map);
+    // Draw active segment using sequential coords — no crossing
+    const fromCoord = routeCoords[activeDay];
+    const toCoord = routeCoords[activeDay + 1];
+    if (fromCoord && toCoord) {
+      const activeLine = L.polyline([fromCoord, toCoord], {
+        color: '#3b9ece',
+        weight: 4,
+        opacity: 0.95,
+      }).addTo(map);
       layersRef.current.push(activeLine);
 
-      // Arrow decorator (manual midpoint arrow)
-      const midLat = (activeD.fromLat + activeD.toLat) / 2;
-      const midLng = (activeD.fromLng + activeD.toLng) / 2;
+      // Bearing-correct arrow at midpoint
+      const midLat = (fromCoord[0] + toCoord[0]) / 2;
+      const midLng = (fromCoord[1] + toCoord[1]) / 2;
+      const bearing = Math.atan2(toCoord[1] - fromCoord[1], toCoord[0] - fromCoord[0]) * (180 / Math.PI);
       const arrowIcon = L.divIcon({
-        html: `<div style="color:#3b9ece;font-size:20px;line-height:1;">➤</div>`,
+        html: `<div style="color:#3b9ece;font-size:18px;line-height:1;transform:rotate(${bearing - 90}deg);">▲</div>`,
         className: '',
-        iconSize: [20, 20],
-        iconAnchor: [10, 10],
+        iconSize: [18, 18],
+        iconAnchor: [9, 9],
       });
-      const arrowMarker = L.marker([midLat, midLng], { icon: arrowIcon }).addTo(map);
-      layersRef.current.push(arrowMarker);
+      layersRef.current.push(L.marker([midLat, midLng], { icon: arrowIcon, interactive: false }).addTo(map));
     }
 
-    // Add markers for each day
+    // Day markers
     days.forEach((d, i) => {
       if (!d.fromLat || !d.fromLng) return;
-
       const isActive = i === activeDay;
-      const isMarina = !!d.marina?.name;
 
       const markerIcon = L.divIcon({
         html: `<div style="
-          width:${isActive ? 36 : 28}px;
-          height:${isActive ? 36 : 28}px;
-          background:${isActive ? '#3b9ece' : 'rgba(20,40,65,0.9)'};
+          width:${isActive ? 36 : 28}px;height:${isActive ? 36 : 28}px;
+          background:${isActive ? '#3b9ece' : 'rgba(10,25,45,0.92)'};
           border:2px solid ${isActive ? '#fff' : '#3b9ece'};
-          border-radius:50%;
-          display:flex;align-items:center;justify-content:center;
+          border-radius:50%;display:flex;align-items:center;justify-content:center;
           color:white;font-weight:700;font-size:${isActive ? 14 : 11}px;
-          font-family:sans-serif;
-          box-shadow:0 2px 8px rgba(0,0,0,0.4);
-          cursor:pointer;
+          font-family:sans-serif;box-shadow:0 2px 10px rgba(0,0,0,0.5);cursor:pointer;
         ">${i + 1}</div>`,
         className: '',
         iconSize: [isActive ? 36 : 28, isActive ? 36 : 28],
@@ -117,40 +126,51 @@ export default function MapView({ itinerary, activeDay, onDaySelect }) {
       const marker = L.marker([d.fromLat, d.fromLng], { icon: markerIcon })
         .addTo(map)
         .bindPopup(`
-          <div style="font-family:sans-serif;min-width:180px">
-            <div style="font-weight:700;color:#0a1628;margin-bottom:4px">Day ${d.day}: ${d.title}</div>
-            <div style="color:#555;font-size:13px">${d.distance} • ${d.sailTime}</div>
-            ${d.marina?.name ? `<div style="color:#3b9ece;font-size:12px;margin-top:4px">⚓ ${d.marina.name}</div>` : ''}
-            ${d.anchorage?.name ? `<div style="color:#d4a840;font-size:12px">🏖️ ${d.anchorage.name}</div>` : ''}
-            ${d.weather ? `<div style="font-size:12px;color:#666;margin-top:4px">🌡️ ${d.weather.temp}°C • 💨 ${d.weather.wind}</div>` : ''}
+          <div style="font-family:sans-serif;min-width:190px;padding:4px 0">
+            <div style="font-weight:700;font-size:14px;color:#0a1628;margin-bottom:4px">Dan ${d.day}: ${d.title || ''}</div>
+            <div style="color:#4a6a80;font-size:12px;margin-bottom:6px">${d.distance || ''} • ${d.sailTime || ''}</div>
+            ${d.marina?.name ? `<div style="color:#1a7fb5;font-size:12px">⚓ ${d.marina.name}${d.marina.price ? ` (${d.marina.price})` : ''}</div>` : ''}
+            ${d.anchorage?.name ? `<div style="color:#b07d10;font-size:12px">🏖️ ${d.anchorage.name}</div>` : ''}
+            ${d.restaurant?.name ? `<div style="color:#2a6a40;font-size:12px">🍽️ ${d.restaurant.name}</div>` : ''}
+            ${d.weather ? `<div style="color:#555;font-size:11px;margin-top:6px;border-top:1px solid #eee;padding-top:6px">🌡️ ${d.weather.temp}°C &nbsp; 💨 ${d.weather.wind}</div>` : ''}
           </div>
         `);
 
-      marker.on('click', () => onDaySelect && onDaySelect(i));
+      marker.on('click', () => onDaySelect?.(i));
       layersRef.current.push(marker);
-      allCoords.push([d.fromLat, d.fromLng]);
 
-      // Wind arrow at each stop
-      if (d.weather?.wind && d.fromLat) {
-        const windKt = parseInt(d.weather.wind) || 10;
-        const windDir = d.weather.wind.match(/^[A-Z]+/) ? 180 : 270; // rough estimate
+      // Wind arrow offset slightly from day marker
+      if (d.weather?.wind) {
+        const kt = windToKt(d.weather.wind);
+        const deg = windToDeg(d.weather.wind);
         const windIcon = L.divIcon({
-          html: windArrowSVG(windDir, windKt),
+          html: windArrowSVG(deg, kt),
           className: '',
           iconSize: [32, 32],
           iconAnchor: [16, 16],
         });
-        const windMarker = L.marker(
-          [d.fromLat + 0.03, d.fromLng + 0.03],
-          { icon: windIcon, interactive: false }
-        ).addTo(map);
-        layersRef.current.push(windMarker);
+        layersRef.current.push(L.marker([d.fromLat + 0.04, d.fromLng - 0.04], { icon: windIcon, interactive: false }).addTo(map));
       }
     });
 
-    // Fit map to all coords
-    if (allCoords.length > 0) {
-      map.fitBounds(allCoords, { padding: [40, 40] });
+    // Final destination marker (🏁)
+    if (last?.toLat && last?.toLng) {
+      const endIcon = L.divIcon({
+        html: `<div style="width:26px;height:26px;background:rgba(212,168,64,0.9);border:2px solid #fff;border-radius:50%;display:flex;align-items:center;justify-content:center;font-size:13px;box-shadow:0 2px 8px rgba(0,0,0,0.4);">🏁</div>`,
+        className: '',
+        iconSize: [26, 26],
+        iconAnchor: [13, 13],
+      });
+      layersRef.current.push(
+        L.marker([last.toLat, last.toLng], { icon: endIcon })
+          .addTo(map)
+          .bindPopup(`<div style="font-family:sans-serif;font-weight:700;color:#0a1628">🏁 Cilj: ${last.to || ''}</div>`)
+      );
+    }
+
+    // Fit map to full route
+    if (routeCoords.length > 0) {
+      map.fitBounds(routeCoords, { padding: [50, 50], maxZoom: 10 });
     }
   }, [itinerary, activeDay]);
 

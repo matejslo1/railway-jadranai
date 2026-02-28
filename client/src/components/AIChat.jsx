@@ -7,6 +7,17 @@ const SendIcon = () => (
   </svg>
 );
 
+// Strip markdown formatting from AI responses
+function stripMarkdown(text) {
+  return text
+    .replace(/\*\*(.*?)\*\*/g, '$1')       // **bold** → bold
+    .replace(/\*(.*?)\*/g, '$1')            // *italic* → italic
+    .replace(/#{1,3}\s*/g, '')              // ### headers → plain
+    .replace(/^\s*[-*]\s/gm, '• ')         // - bullets → •
+    .replace(/`([^`]+)`/g, '$1')           // `code` → plain
+    .trim();
+}
+
 const QUICK_QUESTIONS = [
   'Spremeni dan 3 na Vis',
   'Dodaj še en dan',
@@ -106,7 +117,7 @@ export default function AIChat({ itinerary, language = 'en' }) {
                   lineHeight: 1.5,
                   whiteSpace: 'pre-wrap',
                 }}>
-                  {m.text}
+                  {m.role === 'assistant' ? stripMarkdown(m.text) : m.text}
                 </div>
               </div>
             ))}
