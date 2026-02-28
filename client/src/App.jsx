@@ -1,4 +1,5 @@
 import { useState, useRef } from 'react';
+import { useTranslation } from 'react-i18next';
 import { generateTrip, joinWaitlist } from './lib/api.js';
 
 // --- Icons ---
@@ -12,17 +13,53 @@ const Icons = {
   Mail: () => <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><rect x="2" y="4" width="20" height="16" rx="2"/><path d="M22 4L12 13 2 4"/></svg>,
   Check: () => <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><polyline points="20 6 9 17 4 12"/></svg>,
   Sail: () => <svg width="36" height="36" viewBox="0 0 24 24" fill="none" stroke="#3b9ece" strokeWidth="1.5"><path d="M2 20L12 4l3 6 5-2-6 12H2z" fill="rgba(59,158,206,0.15)"/><path d="M2 20L12 4l3 6 5-2-6 12H2z"/></svg>,
+  Globe: () => <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><circle cx="12" cy="12" r="10"/><line x1="2" y1="12" x2="22" y2="12"/><path d="M12 2a15.3 15.3 0 0 1 4 10 15.3 15.3 0 0 1-4 10 15.3 15.3 0 0 1-4-10 15.3 15.3 0 0 1 4-10z"/></svg>,
 };
 
-const SUGGESTIONS = [
-  "5-day family sailing trip from Split in July",
-  "Weekend getaway from Dubrovnik, couple, wine & beaches",
-  "7 days from Trogir, experienced sailors, remote anchorages",
-  "3 days around Hvar and Vis islands, food focused",
+const LANGUAGES = [
+  { code: 'en', label: 'EN', name: 'English' },
+  { code: 'sl', label: 'SL', name: 'Slovenščina' },
+  { code: 'hr', label: 'HR', name: 'Hrvatski' },
+  { code: 'it', label: 'IT', name: 'Italiano' },
+  { code: 'de', label: 'DE', name: 'Deutsch' },
 ];
+
+// --- Language Switcher ---
+function LanguageSwitcher() {
+  const { i18n } = useTranslation();
+  const [open, setOpen] = useState(false);
+  const current = LANGUAGES.find(l => l.code === i18n.language) || LANGUAGES[0];
+
+  const select = (code) => {
+    i18n.changeLanguage(code);
+    setOpen(false);
+  };
+
+  return (
+    <div className="lang-switcher">
+      <button className="lang-btn" onClick={() => setOpen(!open)}>
+        <Icons.Globe /> {current.label}
+      </button>
+      {open && (
+        <div className="lang-dropdown">
+          {LANGUAGES.map(lang => (
+            <button
+              key={lang.code}
+              className={`lang-option ${lang.code === current.code ? 'active' : ''}`}
+              onClick={() => select(lang.code)}
+            >
+              {lang.name}
+            </button>
+          ))}
+        </div>
+      )}
+    </div>
+  );
+}
 
 // --- Waitlist Form ---
 function WaitlistForm() {
+  const { t } = useTranslation();
   const [email, setEmail] = useState('');
   const [status, setStatus] = useState(null);
   const [message, setMessage] = useState('');
@@ -50,10 +87,10 @@ function WaitlistForm() {
       <div className="waitlist-input-wrap">
         <Icons.Mail />
         <input type="email" value={email} onChange={e => setEmail(e.target.value)}
-          onKeyDown={e => e.key === 'Enter' && handleSubmit()} placeholder="you@email.com" />
+          onKeyDown={e => e.key === 'Enter' && handleSubmit()} placeholder={t('waitlist_placeholder')} />
       </div>
       <button onClick={handleSubmit} disabled={status === 'loading'} className="waitlist-btn">
-        {status === 'loading' ? 'Joining...' : 'Join Waitlist'}
+        {status === 'loading' ? t('waitlist_joining') : t('waitlist_btn')}
       </button>
     </div>
   );
@@ -61,6 +98,7 @@ function WaitlistForm() {
 
 // --- Main App ---
 export default function App() {
+  const { t, i18n } = useTranslation();
   const [query, setQuery] = useState('');
   const [loading, setLoading] = useState(false);
   const [itinerary, setItinerary] = useState(null);
@@ -77,21 +115,14 @@ export default function App() {
 
     setLoading(true); setShowWelcome(false); setItinerary(null);
     setMeta(null); setError(null);
-    setStreamText('Charting your course through the Adriatic...');
 
-    const phases = [
-      'Fetching live wind & wave forecasts...',
-      'Scanning marina availability along the coast...',
-      'Finding the best anchorages for your route...',
-      'Picking restaurants with the freshest catch...',
-      'Plotting your optimal sailing route...',
-      'Generating your personalized itinerary...',
-    ];
+    const phases = t('loading_phases', { returnObjects: true });
+    setStreamText(phases[0]);
     let i = 0;
     const interval = setInterval(() => { i++; if (i < phases.length) setStreamText(phases[i]); }, 2200);
 
     try {
-      const data = await generateTrip(q);
+      const data = await generateTrip(q, i18n.language);
       clearInterval(interval);
       if (data.success && data.itinerary) {
         setItinerary(data.itinerary); setMeta(data.meta);
@@ -109,6 +140,8 @@ export default function App() {
   const handleKey = (e) => { if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); plan(); } };
   const reset = () => { setItinerary(null); setMeta(null); setQuery(''); setError(null); setShowWelcome(true); window.scrollTo({ top: 0, behavior: 'smooth' }); };
 
+  const suggestions = t('loading_phases', { returnObjects: true }) && t('suggestions', { returnObjects: true });
+
   const day = itinerary?.days?.[activeDay];
   const weather = day ? (day.weather || {}) : {};
   const marina = day ? (typeof day.marina === 'string' ? { name: day.marina } : day.marina || {}) : {};
@@ -123,15 +156,18 @@ export default function App() {
 
           {/* Header */}
           <header className="header">
+            <div className="header-top">
+              <LanguageSwitcher />
+            </div>
             <div className="logo-mark">
               <div className="logo-icon"><Icons.Sail /></div>
               <h1 className="title">Jadran AI</h1>
             </div>
-            <p className="subtitle">Adriatic Voyage Planner</p>
+            <p className="subtitle">{t('subtitle')}</p>
             {showWelcome && (
               <div className="fade-in">
-                <p className="tagline">AI-powered sailing itineraries with live weather data, curated anchorages & local restaurant picks across 1,200+ Croatian islands.</p>
-                <div className="badge"><span className="live-dot" /> Live weather data • Real-time wind forecasts</div>
+                <p className="tagline">{t('tagline')}</p>
+                <div className="badge"><span className="live-dot" /> {t('badge')}</div>
               </div>
             )}
           </header>
@@ -139,18 +175,18 @@ export default function App() {
           {/* Input */}
           <div className="input-section">
             <div className="input-wrapper">
-              <textarea placeholder="Describe your dream Adriatic sailing trip..." value={query}
+              <textarea placeholder={t('placeholder')} value={query}
                 onChange={e => setQuery(e.target.value)} onKeyDown={handleKey} rows={2} disabled={loading} />
               <div className="input-footer">
-                <span className="hint">Press Enter to plan • Shift+Enter for new line</span>
+                <span className="hint">{t('hint')}</span>
                 <button className="send-btn" onClick={() => plan()} disabled={loading || !query.trim()}>
-                  {loading ? 'Planning...' : <><Icons.Send /> Plan Trip</>}
+                  {loading ? t('planning_btn') : <><Icons.Send /> {t('plan_btn')}</>}
                 </button>
               </div>
             </div>
-            {showWelcome && (
+            {showWelcome && Array.isArray(suggestions) && (
               <div className="suggestions fade-in">
-                {SUGGESTIONS.map((sg, i) => (
+                {suggestions.map((sg, i) => (
                   <button key={i} className="chip" onClick={() => { setQuery(sg); plan(sg); }}>
                     <Icons.Compass /> {sg}
                   </button>
@@ -162,7 +198,7 @@ export default function App() {
           {/* Waitlist */}
           {showWelcome && (
             <div className="waitlist-section fade-in">
-              <p className="waitlist-label">Get early access to Pro features</p>
+              <p className="waitlist-label">{t('waitlist_label')}</p>
               <WaitlistForm />
             </div>
           )}
@@ -179,7 +215,7 @@ export default function App() {
           {error && (
             <div className="error-box fade-in">
               <p>{error}</p>
-              <button onClick={() => plan()}>Try Again</button>
+              <button onClick={() => plan()}>{t('try_again')}</button>
             </div>
           )}
 
@@ -187,15 +223,15 @@ export default function App() {
           {itinerary && (
             <div ref={resultRef} className="fade-in">
               <div className="trip-header">
-                <h2 className="trip-title">{itinerary.tripTitle} <span className="live-tag"><span className="live-dot" /> Live weather</span></h2>
+                <h2 className="trip-title">{itinerary.tripTitle} <span className="live-tag"><span className="live-dot" /> {t('live_weather')}</span></h2>
                 <p className="trip-summary">{itinerary.summary}</p>
                 <div className="meta-grid">
-                  <div className="meta-item"><div className="meta-label">Duration</div><div className="meta-value">{itinerary.days?.length} Days</div></div>
-                  <div className="meta-item"><div className="meta-label">Distance</div><div className="meta-value">{itinerary.totalDistance}</div></div>
-                  <div className="meta-item"><div className="meta-label">Difficulty</div><div className="meta-value">{itinerary.difficulty}</div></div>
-                  <div className="meta-item"><div className="meta-label">Best For</div><div className="meta-value">{itinerary.bestFor}</div></div>
+                  <div className="meta-item"><div className="meta-label">{t('duration')}</div><div className="meta-value">{itinerary.days?.length} {t('days_label')}</div></div>
+                  <div className="meta-item"><div className="meta-label">{t('distance')}</div><div className="meta-value">{itinerary.totalDistance}</div></div>
+                  <div className="meta-item"><div className="meta-label">{t('difficulty')}</div><div className="meta-value">{itinerary.difficulty}</div></div>
+                  <div className="meta-item"><div className="meta-label">{t('best_for')}</div><div className="meta-value">{itinerary.bestFor}</div></div>
                   {itinerary.estimatedBudget && (
-                    <div className="meta-item"><div className="meta-label">Budget</div><div className="meta-value">
+                    <div className="meta-item"><div className="meta-label">{t('budget')}</div><div className="meta-value">
                       {typeof itinerary.estimatedBudget === 'string' ? itinerary.estimatedBudget : `${itinerary.estimatedBudget.low} – ${itinerary.estimatedBudget.high}`}
                     </div></div>
                   )}
@@ -208,7 +244,7 @@ export default function App() {
 
               <div className="day-nav">
                 {itinerary.days?.map((d, i) => (
-                  <button key={i} className={`day-tab ${i === activeDay ? 'active' : ''}`} onClick={() => setActiveDay(i)}>Day {d.day}</button>
+                  <button key={i} className={`day-tab ${i === activeDay ? 'active' : ''}`} onClick={() => setActiveDay(i)}>{t('day')} {d.day}</button>
                 ))}
               </div>
 
@@ -217,31 +253,31 @@ export default function App() {
                   <h3 className="day-title">{day.title}</h3>
                   <div className="day-route">
                     <Icons.Compass /> {day.distance} • {day.sailTime}
-                    {day.departureTime && <span className="dim"> • Depart {day.departureTime}</span>}
+                    {day.departureTime && <span className="dim"> • {t('depart')} {day.departureTime}</span>}
                   </div>
 
                   <div className="info-grid">
                     <div className="info-card">
-                      <div className="info-card-title"><Icons.Sun /> Weather</div>
+                      <div className="info-card-title"><Icons.Sun /> {t('weather')}</div>
                       <div className="info-card-value">
                         {weather.condition} • {weather.temp}°C<br/>
                         <span className="wind-row"><Icons.Wind /> {weather.wind}</span><br/>
-                        <span className="dim">Waves: {weather.waves}</span>
+                        <span className="dim">{t('waves')}: {weather.waves}</span>
                         {weather.safety && <><br/><span className="dim">{weather.safety}</span></>}
                       </div>
                     </div>
                     <div className="info-card">
-                      <div className="info-card-title"><Icons.Anchor /> Berth / Anchorage</div>
+                      <div className="info-card-title"><Icons.Anchor /> {t('berth')}</div>
                       <div className="info-card-value">
                         {marina.name && <div>⚓ {marina.name}{marina.price ? ` (${marina.price})` : ''}</div>}
                         {anchorage.name && <div style={{ marginTop: marina.name ? 6 : 0 }}>🏖️ {anchorage.name}{anchorage.notes ? <><br/><span className="dim">{anchorage.notes}</span></> : ''}</div>}
                       </div>
                     </div>
                     <div className="info-card">
-                      <div className="info-card-title">🍽️ Dinner</div>
+                      <div className="info-card-title">🍽️ {t('dinner')}</div>
                       <div className="info-card-value">
-                        {restaurant.name || 'Ask locals for the catch of the day'}
-                        {restaurant.dish && <><br/><span className="dim">Try: {restaurant.dish}</span></>}
+                        {restaurant.name || t('ask_locals')}
+                        {restaurant.dish && <><br/><span className="dim">{t('try_dish')}: {restaurant.dish}</span></>}
                         {restaurant.price && <span className="dim" style={{ marginLeft: 6 }}>{restaurant.price}</span>}
                       </div>
                     </div>
@@ -249,33 +285,33 @@ export default function App() {
 
                   {day.highlights?.length > 0 && (
                     <div className="highlights">
-                      <div className="section-label">Highlights</div>
+                      <div className="section-label">{t('highlights')}</div>
                       <div className="chip-list">{day.highlights.map((h, i) => <span key={i} className="highlight-chip">{h}</span>)}</div>
                     </div>
                   )}
 
-                  {day.tip && <div className="tip-box"><strong>⚓ Captain's Tip:</strong> {day.tip}</div>}
+                  {day.tip && <div className="tip-box"><strong>⚓ {t('captains_tip')}:</strong> {day.tip}</div>}
                 </div>
               )}
 
               {itinerary.packingTips?.length > 0 && (
                 <div className="trip-header" style={{ marginTop: 16 }}>
-                  <div className="section-label">Don't forget to pack</div>
+                  <div className="section-label">{t('packing')}</div>
                   <div className="chip-list" style={{ marginTop: 8 }}>
-                    {itinerary.packingTips.map((t, i) => <span key={i} className="highlight-chip">🎒 {t}</span>)}
+                    {itinerary.packingTips.map((tip, i) => <span key={i} className="highlight-chip">🎒 {tip}</span>)}
                   </div>
                 </div>
               )}
 
               <div style={{ textAlign: 'center' }}>
-                <button className="new-trip-btn" onClick={reset}>⛵ Plan Another Voyage</button>
+                <button className="new-trip-btn" onClick={reset}>{t('new_trip_btn')}</button>
               </div>
             </div>
           )}
 
           <footer className="footer">
-            <p>Jadran AI — Your Adriatic Co-Captain</p>
-            <p className="footer-sub">Live weather from Open-Meteo • AI by Claude • v1.0</p>
+            <p>{t('footer')}</p>
+            <p className="footer-sub">{t('footer_sub')}</p>
           </footer>
         </div>
       </div>

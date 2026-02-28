@@ -23,6 +23,8 @@ const START_LOCATIONS = {
   'kastela': { lat: 43.5511, lng: 16.3700 },
 };
 
+const SUPPORTED_LANGUAGES = ['en', 'sl', 'hr', 'it', 'de'];
+
 // Detect starting location from query text
 function detectStartLocation(query) {
   const lower = query.toLowerCase();
@@ -36,13 +38,16 @@ function detectStartLocation(query) {
 // POST /api/trips/generate
 router.post('/generate', tripLimiter, async (req, res) => {
   try {
-    const { query, startLat, startLng } = req.body;
+    const { query, startLat, startLng, language } = req.body;
 
     if (!query || query.trim().length < 10) {
       return res.status(400).json({
         error: 'Please describe your trip in more detail (at least 10 characters).',
       });
     }
+
+    // Validate and sanitize language
+    const lang = SUPPORTED_LANGUAGES.includes(language) ? language : 'en';
 
     // Determine starting coordinates
     let lat, lng, startName;
@@ -57,15 +62,14 @@ router.post('/generate', tripLimiter, async (req, res) => {
       startName = detected.name;
     }
 
-    console.log(`[Trip] Generating for: "${query.substring(0, 80)}..." from ${startName} (${lat}, ${lng})`);
+    console.log(`[Trip] Generating for: "${query.substring(0, 80)}..." from ${startName} (${lat}, ${lng}) lang=${lang}`);
 
     // Fetch real weather data
     const weather = await getCombinedForecast(lat, lng, 7);
 
-    // Generate AI itinerary
-    const itinerary = await generateTrip(query, weather, startName);
+    // Generate AI itinerary with language
+    const itinerary = await generateTrip(query, weather, startName, lang);
 
-    // Log for analytics (replace with DB insert later)
     console.log(`[Trip] Generated: "${itinerary.tripTitle}" — ${itinerary.days?.length} days, ${itinerary.totalDistance}`);
 
     res.json({
@@ -76,6 +80,7 @@ router.post('/generate', tripLimiter, async (req, res) => {
         weather_source: 'open-meteo.com',
         generated_at: new Date().toISOString(),
         ai_model: 'claude-sonnet-4',
+        language: lang,
       },
     });
   } catch (err) {

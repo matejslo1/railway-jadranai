@@ -7,8 +7,20 @@ const restaurants = require('../data/restaurants.json');
 
 const CLAUDE_API_URL = 'https://api.anthropic.com/v1/messages';
 
-function buildSystemPrompt(weatherData, startLocation) {
+const LANGUAGE_NAMES = {
+  en: 'English',
+  sl: 'Slovenian',
+  hr: 'Croatian',
+  it: 'Italian',
+  de: 'German',
+};
+
+function buildSystemPrompt(weatherData, startLocation, language = 'en') {
+  const langName = LANGUAGE_NAMES[language] || 'English';
+
   return `You are "Jadran AI" — an expert Adriatic sailing trip planner with decades of experience navigating the Croatian, Slovenian, and Montenegrin coasts.
+
+LANGUAGE: You MUST respond entirely in ${langName}. Every field in the JSON — tripTitle, summary, highlights, tips, warnings, packingTips, bestFor, everything — must be written in ${langName}. Do not mix languages.
 
 You MUST respond ONLY with valid JSON — absolutely no markdown, no backticks, no preamble, no explanation. Just pure JSON.
 
@@ -76,6 +88,7 @@ ${JSON.stringify(restaurants.map(r => ({
   })), null, 2)}
 
 CRITICAL RULES:
+- ALL text content in the JSON must be in ${langName}
 - Use the real weather data to make safe route decisions
 - If wind > 25kt on any day, suggest a sheltered route or rest day
 - If wind > 30kt, mark that day as "stay in port" with indoor activities
@@ -89,7 +102,7 @@ CRITICAL RULES:
 - If the trip starts from ${startLocation || 'Split'}, include provisioning tips for day 1`;
 }
 
-async function generateTrip(userQuery, weatherData, startLocation) {
+async function generateTrip(userQuery, weatherData, startLocation, language = 'en') {
   if (!process.env.CLAUDE_API_KEY) {
     throw new Error('CLAUDE_API_KEY not configured');
   }
@@ -104,7 +117,7 @@ async function generateTrip(userQuery, weatherData, startLocation) {
     body: JSON.stringify({
       model: 'claude-sonnet-4-20250514',
       max_tokens: 4000,
-      system: buildSystemPrompt(weatherData, startLocation),
+      system: buildSystemPrompt(weatherData, startLocation, language),
       messages: [{ role: 'user', content: userQuery }],
     }),
   });

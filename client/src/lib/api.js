@@ -3,11 +3,11 @@ const API_BASE = import.meta.env.PROD
   ? 'https://railway-jadranai-production.up.railway.app'
   : ''; // In dev, Vite proxies /api to localhost:3001
 
-export async function generateTrip(query) {
+export async function generateTrip(query, language = 'en') {
   const res = await fetch(`${API_BASE}/api/trips/generate`, {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({ query }),
+    body: JSON.stringify({ query, language }),
   });
   if (!res.ok) {
     const err = await res.json().catch(() => ({}));
