@@ -283,12 +283,14 @@ export default function App() {
 
               {/* MAP VIEW */}
               {viewTab === 'map' && (
-                {safeRouteLoading && (
-                  <div style={{ textAlign: 'center', color: '#34d399', fontSize: 12, marginBottom: 8, opacity: 0.8 }}>
-                    🛡️ Izračunavam varno plovbno pot...
-                  </div>
-                )}
-                <MapView itinerary={itinerary} activeDay={activeDay} onDaySelect={setActiveDay} safeRoute={safeRoute} />
+                <>
+                  {safeRouteLoading && (
+                    <div style={{ textAlign: 'center', color: '#34d399', fontSize: 12, marginBottom: 8, opacity: 0.8 }}>
+                      🛡️ Izračunavam varno plovbno pot...
+                    </div>
+                  )}
+                  <MapView itinerary={itinerary} activeDay={activeDay} onDaySelect={setActiveDay} safeRoute={safeRoute} />
+                </>
               )}
 
               {/* WIND VIEW */}

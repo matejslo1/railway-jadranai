@@ -56,7 +56,7 @@ function makeDayIcon(L, type, num, isActive) {
           box-shadow:0 1px 4px rgba(0,0,0,0.6);
         ">${num}</div>
       </div>`,
-    className: '',
+    className: 'jadran-marker',
     iconSize: [size, size],
     iconAnchor: [size / 2, size / 2],
     popupAnchor: [0, -(size / 2 + 5)],

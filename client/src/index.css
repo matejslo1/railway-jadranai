@@ -133,3 +133,4 @@ body { background: var(--navy); color: var(--text); font-family: 'Outfit', sans-
 .leaflet-popup-content { color: #c8dce8; margin: 12px 16px; }
 .leaflet-popup-tip { background: #0d2035; }
 .leaflet-control-zoom a { background: #0d2035 !important; color: #3b9ece !important; border-color: rgba(59,158,206,0.3) !important; }
+.jadran-marker { background: none !important; border: none !important; box-shadow: none !important; }
