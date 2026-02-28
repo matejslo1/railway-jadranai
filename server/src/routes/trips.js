@@ -50,7 +50,9 @@ router.post('/generate', tripLimiter, async (req, res) => {
     console.log(`[Trip] "${query.substring(0, 80)}" from ${startName} lang=${lang}`);
     const weather = await getCombinedForecast(lat, lng, 7);
     const itinerary = await generateTrip(query, weather, startName, lang, vessel);
-    console.log(`[Trip] Generated: "${itinerary.tripTitle}" — ${itinerary.days?.length} days`);
+    
+    const snapped = await snapItineraryToWater(itinerary);
+console.log(`[Trip] Generated: "${itinerary.tripTitle}" — ${itinerary.days?.length} days`);
     res.json({
       success: true, itinerary,
       meta: { start_location: startName, weather_source: 'open-meteo.com', generated_at: new Date().toISOString(), ai_model: 'claude-sonnet-4', language: lang },
