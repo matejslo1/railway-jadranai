@@ -12,7 +12,10 @@
     "react-dom": "^18.3.1",
     "i18next": "^23.7.6",
     "react-i18next": "^14.0.1",
-    "i18next-browser-languagedetector": "^7.2.1"
+    "i18next-browser-languagedetector": "^7.2.1",
+    "topojson-client": "^3.1.0",
+    "@turf/helpers": "^6.5.0",
+    "@turf/boolean-point-in-polygon": "^6.5.0"
   },
   "devDependencies": {
     "@vitejs/plugin-react": "^4.3.4",
