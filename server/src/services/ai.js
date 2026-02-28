@@ -4,6 +4,8 @@ const anchorages = require('../data/anchorages.json');
 const restaurants = require('../data/restaurants.json');
 
 const CLAUDE_API_URL = 'https://api.anthropic.com/v1/messages';
+const claudeApiKey = process.env.CLAUDE_API_KEY;
+const { generateSafeRouteLegs } = require('./safeRouting');
 
 const LANGUAGE_NAMES = {
   en: 'English', sl: 'Slovenian', hr: 'Croatian', it: 'Italian', de: 'German',
@@ -164,6 +166,29 @@ AREAS TO AVOID:
 `;
 
 async function generateSafeRoute(days, vessel = { draft_m: 2.0, type: 'sailboat' }) {
+  // 1) Deterministic land-avoid router (fast, no API keys)
+  try {
+    const safeLegs = generateSafeRouteLegs(days);
+    // If we produced waypoints, return them.
+    if (Array.isArray(safeLegs) && safeLegs.some(l => (l.waypoints || []).length >= 2)) {
+      return safeLegs;
+    }
+  } catch (e) {
+    console.warn('[SafeRoute] Deterministic router failed, falling back to AI:', e.message);
+  }
+
+  // 2) AI fallback (can still be used if you prefer; requires CLAUDE_API_KEY)
+  if (!claudeApiKey) {
+    // No AI key: return straight-ish curve fallback
+    return (days || []).map(d => ({
+      day: d.day, from: d.from, to: d.to,
+      waypoints: [
+        { lat: Number(((Number(d.fromLat)*2 + Number(d.toLat))/3).toFixed(5)), lng: Number(((Number(d.fromLng)*2 + Number(d.toLng))/3).toFixed(5)), note: 'curve' },
+        { lat: Number(((Number(d.fromLat) + Number(d.toLat)*2)/3).toFixed(5)), lng: Number(((Number(d.fromLng) + Number(d.toLng)*2)/3).toFixed(5)), note: '' },
+      ],
+    }));
+  }
+
   const system = `You are a professional Adriatic sailing navigator with 30 years of experience.
 Your task is to generate a realistic, curved sailing route with intermediate GPS waypoints for each leg.
 
@@ -172,7 +197,6 @@ VESSEL CONSTRAINTS:
 - draft_m: ${vessel.draft_m ?? 2.0}
 - air_draft_m: ${vessel.air_draft_m ?? 'unknown'}
 - cruise_speed_kn: ${vessel.cruise_speed_kn ?? 'unknown'}
-
 
 You MUST respond ONLY with valid JSON — no markdown, no backticks, no explanation. Pure JSON only.
 
@@ -205,7 +229,8 @@ Response format — array of legs matching input order:
   }
 ]`;
 
-  const userMsg = `Generate safe waypoints for these sailing legs:\n${JSON.stringify(days.map(d => ({
+  const userMsg = `Generate safe waypoints for these sailing legs:
+${JSON.stringify(days.map(d => ({
     day: d.day,
     from: d.from,
     to: d.to,
@@ -221,8 +246,10 @@ Response format — array of legs matching input order:
     return JSON.parse(clean);
   } catch (e) {
     console.error('Failed to parse safe route response:', text.substring(0, 300));
-    return days.map(d => ({ day: d.day, from: d.from, to: d.to, waypoints: [] }));
+    return (days || []).map(d => ({ day: d.day, from: d.from, to: d.to, waypoints: [] }));
   }
 }
+
+module.exports
 
 module.exports = { generateTrip, chatWithTrip, generateSafeRoute };
