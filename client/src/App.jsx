@@ -116,6 +116,7 @@ export default function App() {
   const [itinerary, setItinerary] = useState(null);
   const [safeRoute, setSafeRoute] = useState(null);
   const [safeRouteLoading, setSafeRouteLoading] = useState(false);
+  const [safeRouteError, setSafeRouteError] = useState(null);
   const [streamText, setStreamText] = useState('');
   const [activeDay, setActiveDay] = useState(0);
   const [showWelcome, setShowWelcome] = useState(true);
@@ -149,18 +150,34 @@ const [error, setError] = useState(null);
         console.log('DAY0', JSON.stringify(data.itinerary.days?.[0], null, 2));
         setItinerary(data.itinerary);
         setSafeRoute(null);
+        setSafeRouteError(null);
         setActiveDay(0); setStreamText(''); setViewTab('itinerary');
-        // Fetch safe route in background
-        setSafeRouteLoading(true);
-        getSafeRoute(data.itinerary.days, vessel)
-          .then(sr => setSafeRoute(sr))
-          .catch(e => console.warn('Safe route failed:', e))
-          .finally(() => setSafeRouteLoading(false));
+        // Fetch safe route
+        fetchSafeRoute(data.itinerary.days);
         setTimeout(() => resultRef.current?.scrollIntoView({ behavior: 'smooth', block: 'start' }), 100);
       } else throw new Error(data.error || 'Failed to generate itinerary');
     } catch (err) { clearInterval(interval); setError(err.message); setStreamText(''); }
     setLoading(false);
   };
+
+  const fetchSafeRoute = (days) => {
+    if (!days || !Array.isArray(days) || days.length === 0) return Promise.resolve(null);
+    setSafeRouteLoading(true);
+    setSafeRouteError(null);
+    return getSafeRoute(days, vessel)
+      .then((sr) => {
+        setSafeRoute(sr);
+        return sr;
+      })
+      .catch((e) => {
+        console.warn('Safe route failed:', e);
+        setSafeRoute(null);
+        setSafeRouteError(e?.message || 'Safe route failed');
+        throw e;
+      })
+      .finally(() => setSafeRouteLoading(false));
+  };
+
 
   const loadSavedTrip = (savedItinerary, savedQuery) => {
     setItinerary(savedItinerary);
@@ -168,6 +185,12 @@ const [error, setError] = useState(null);
     setActiveDay(0);
     setShowWelcome(false);
     setViewTab('itinerary');
+
+    // Fetch safe route also for saved trips (otherwise map can draw straight lines over land)
+    setSafeRoute(null);
+    setSafeRouteError(null);
+    fetchSafeRoute(savedItinerary?.days);
+
     setTimeout(() => resultRef.current?.scrollIntoView({ behavior: 'smooth', block: 'start' }), 100);
   };
 
@@ -193,6 +216,7 @@ const [error, setError] = useState(null);
               <h1 className="title">Jadran AI</h1>
             </div>
             <p className="subtitle">{t('subtitle')}</p>
+            
             {showWelcome && (
               <div className="fade-in">
                 <p className="tagline">{t('tagline')}</p>
@@ -209,7 +233,6 @@ const [error, setError] = useState(null);
           </header>
 
           <div className="input-section">
-            
             <div className="input-wrapper">
               <textarea placeholder={t('placeholder')} value={query}
                 onChange={e => setQuery(e.target.value)}
@@ -221,46 +244,69 @@ const [error, setError] = useState(null);
                   {loading ? t('planning_btn') : <><Icons.Send /> {t('plan_btn')}</>}
                 </button>
               </div>
+
+              <details className="vessel-mini">
+                <summary>{t('vessel_profile')}</summary>
+                <div className="vessel-mini-grid">
+                  <div className="vessel-field">
+                    <label>{t('vessel_type')}</label>
+                    <select
+                      value={vessel.type}
+                      onChange={(e) => setVessel(v => ({ ...v, type: e.target.value }))}
+                      disabled={loading}
+                    >
+                      <option value="motorboat">{t('vessel_motorboat')}</option>
+                      <option value="sailboat">{t('vessel_sailboat')}</option>
+                    </select>
+                  </div>
+
+                  <div className="vessel-field">
+                    <label title={t('vessel_draft_help')}>{t('vessel_draft')}</label>
+                    <input
+                      type="number" step="0.1" min="0"
+                      value={vessel.draft_m}
+                      onChange={(e) => setVessel(v => ({ ...v, draft_m: Number(e.target.value) }))}
+                      disabled={loading}
+                    />
+                  </div>
+
+                  <div className="vessel-field">
+                    <label title={t('vessel_air_draft_help')}>{t('vessel_air_draft')}</label>
+                    <input
+                      type="number" step="0.1" min="0"
+                      value={vessel.air_draft_m}
+                      onChange={(e) => setVessel(v => ({ ...v, air_draft_m: Number(e.target.value) }))}
+                      disabled={loading}
+                    />
+                  </div>
+
+                  <div className="vessel-field">
+                    <label title={t('vessel_speed_help')}>{t('vessel_speed')}</label>
+                    <input
+                      type="number" step="0.1" min="0"
+                      value={vessel.cruise_speed_kn}
+                      onChange={(e) => setVessel(v => ({ ...v, cruise_speed_kn: Number(e.target.value) }))}
+                      disabled={loading}
+                    />
+                  </div>
+                </div>
+                {safeRouteError && (
+                  <div className="safe-route-msg">
+                    <span>⚠️ {t('safe_route_failed', { defaultValue: 'Varna plovna pot ni uspela.' })}</span>
+                    <button type="button" className="mini-btn" onClick={() => fetchSafeRoute(itinerary?.days)} disabled={safeRouteLoading || !itinerary}>
+                      {safeRouteLoading ? t('loading', { defaultValue: 'Nalagam…' }) : t('retry', { defaultValue: 'Poskusi znova' })}
+                    </button>
+                  </div>
+                )}
+                {safeRouteLoading && !safeRouteError && itinerary && (
+                  <div className="safe-route-msg">
+                    <span>🧭 {t('safe_route_loading', { defaultValue: 'Računam varno plovno pot…' })}</span>
+                  </div>
+                )}
+              </details>
+
             </div>
-            {/* Compact vessel row - below textarea */}
-            <div style={{
-              display: 'flex', gap: 8, flexWrap: 'wrap', alignItems: 'center',
-              marginTop: 8, padding: '7px 12px',
-              background: 'rgba(10,22,40,0.5)',
-              border: '1px solid rgba(59,158,206,0.12)',
-              borderRadius: 10,
-            }}>
-              <span style={{ color: 'rgba(90,158,192,0.6)', fontSize: 11, whiteSpace: 'nowrap' }}>🚢</span>
-              <select value={vessel.type} onChange={(e) => setVessel(v => ({ ...v, type: e.target.value }))} disabled={loading}
-                style={{ background: 'rgba(10,22,40,0.8)', border: '1px solid rgba(59,158,206,0.2)', borderRadius: 6, color: '#c8dce8', padding: '3px 7px', fontSize: 12, cursor: 'pointer' }}>
-                <option value="sailboat">⛵ Jadrnica</option>
-                <option value="motorboat">🚤 Motornik</option>
-              </select>
-              <label style={{ color: 'rgba(90,158,192,0.7)', fontSize: 11, display: 'flex', alignItems: 'center', gap: 4 }}>
-                Ugrez
-                <input type="number" inputMode="decimal" step="0.1" min="0.1" value={vessel.draft_m}
-                  onChange={(e) => setVessel(v => ({ ...v, draft_m: parseFloat(e.target.value) || 0 }))}
-                  disabled={loading}
-                  style={{ width: 44, background: 'rgba(10,22,40,0.8)', border: '1px solid rgba(59,158,206,0.2)', borderRadius: 6, color: '#c8dce8', padding: '3px 5px', fontSize: 12, textAlign: 'center' }} />
-                m
-              </label>
-              <label style={{ color: 'rgba(90,158,192,0.7)', fontSize: 11, display: 'flex', alignItems: 'center', gap: 4 }}>
-                Višina
-                <input type="number" inputMode="decimal" step="0.1" min="0.1" value={vessel.air_draft_m}
-                  onChange={(e) => setVessel(v => ({ ...v, air_draft_m: parseFloat(e.target.value) || 0 }))}
-                  disabled={loading}
-                  style={{ width: 44, background: 'rgba(10,22,40,0.8)', border: '1px solid rgba(59,158,206,0.2)', borderRadius: 6, color: '#c8dce8', padding: '3px 5px', fontSize: 12, textAlign: 'center' }} />
-                m
-              </label>
-              <label style={{ color: 'rgba(90,158,192,0.7)', fontSize: 11, display: 'flex', alignItems: 'center', gap: 4 }}>
-                Hitrost
-                <input type="number" inputMode="decimal" step="0.5" min="1" value={vessel.cruise_speed_kn ?? ''} placeholder="7"
-                  onChange={(e) => setVessel(v => ({ ...v, cruise_speed_kn: e.target.value === '' ? null : (parseFloat(e.target.value) || null) }))}
-                  disabled={loading}
-                  style={{ width: 44, background: 'rgba(10,22,40,0.8)', border: '1px solid rgba(59,158,206,0.2)', borderRadius: 6, color: '#c8dce8', padding: '3px 5px', fontSize: 12, textAlign: 'center' }} />
-                kn
-              </label>
-            </div>
+            {showWelcome && Array.isArray(suggestions) && (
               <div className="suggestions fade-in">
                 {suggestions.map((sg, i) => (
                   <button key={i} className="chip" onClick={() => { setQuery(sg); plan(sg); }}>
@@ -409,8 +455,8 @@ const [error, setError] = useState(null);
               <div style={{ marginTop: 16 }}>
                 <AIChat itinerary={itinerary} language={i18n.language} />
               </div>
+                          </div>
 
-              {/* Vessel profile accessible below AI chat in results - now shown compactly below input */}
 
               {itinerary.packingTips?.length > 0 && (
                 <div className="trip-header" style={{ marginTop: 16 }}>
