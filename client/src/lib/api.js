@@ -46,7 +46,21 @@ export async function getMarinas(options = {}) {
   return res.json();
 }
 
-export async function joinWaitlist(email, source = 'app') {
+export async function getSafeRoute(days, vesselDraft = 2.0, vesselType = 'sailboat') {
+  const res = await fetch(`${API_BASE}/api/trips/safe-route`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ days, vesselDraft, vesselType }),
+  });
+  if (!res.ok) {
+    const err = await res.json().catch(() => ({}));
+    throw new Error(err.error || `Server error: ${res.status}`);
+  }
+  const data = await res.json();
+  return data.safeRoute;
+}
+
+
   const res = await fetch(`${API_BASE}/api/waitlist`, {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },

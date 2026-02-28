@@ -31,7 +31,17 @@ function windToKt(windStr) {
   return nums.length >= 2 ? Math.round((+nums[0] + +nums[1]) / 2) : +nums[0];
 }
 
-export default function MapView({ itinerary, activeDay, onDaySelect }) {
+// Build full coordinate array for a leg including safe waypoints
+function buildLegCoords(fromCoord, toCoord, waypoints = []) {
+  const coords = [fromCoord];
+  for (const wp of waypoints) {
+    if (wp.lat && wp.lng) coords.push([wp.lat, wp.lng]);
+  }
+  coords.push(toCoord);
+  return coords;
+}
+
+export default function MapView({ itinerary, activeDay, onDaySelect, safeRoute }) {
   const mapRef = useRef(null);
   const mapInstanceRef = useRef(null);
   const layersRef = useRef([]);
@@ -62,47 +72,87 @@ export default function MapView({ itinerary, activeDay, onDaySelect }) {
     const days = itinerary.days || [];
     if (!days.length) return;
 
-    // Build strictly sequential route: fromLat of each day + toLat of last day
-    // This guarantees correct order with no crossing lines
-    const routeCoords = days
+    // Build route coords — from each day + final destination
+    const fromCoords = days
       .filter(d => d.fromLat && d.fromLng)
       .map(d => [d.fromLat, d.fromLng]);
     const last = days[days.length - 1];
-    if (last?.toLat && last?.toLng) routeCoords.push([last.toLat, last.toLng]);
+    const lastCoord = last?.toLat && last?.toLng ? [last.toLat, last.toLng] : null;
 
-    // Draw full faint dashed route
-    if (routeCoords.length > 1) {
-      const routeLine = L.polyline(routeCoords, {
-        color: 'rgba(59,158,206,0.25)',
+    // Build safe route coords per leg (with waypoints if available)
+    const safeRouteMap = {};
+    if (safeRoute && Array.isArray(safeRoute)) {
+      safeRoute.forEach(leg => { safeRouteMap[leg.day] = leg.waypoints || []; });
+    }
+
+    // Draw full faint dashed route (straight lines fallback)
+    const allRouteCoords = [...fromCoords];
+    if (lastCoord) allRouteCoords.push(lastCoord);
+    if (allRouteCoords.length > 1) {
+      const routeLine = L.polyline(allRouteCoords, {
+        color: 'rgba(59,158,206,0.18)',
         weight: 2,
         dashArray: '6 6',
       }).addTo(map);
       layersRef.current.push(routeLine);
     }
 
-    // Draw active segment using sequential coords — no crossing
-    const fromCoord = routeCoords[activeDay];
-    const toCoord = routeCoords[activeDay + 1];
-    if (fromCoord && toCoord) {
-      const activeLine = L.polyline([fromCoord, toCoord], {
-        color: '#3b9ece',
-        weight: 4,
-        opacity: 0.95,
-      }).addTo(map);
-      layersRef.current.push(activeLine);
+    // Draw safe route legs (with waypoints)
+    days.forEach((d, i) => {
+      const fromCoord = fromCoords[i];
+      const toCoord = fromCoords[i + 1] || lastCoord;
+      if (!fromCoord || !toCoord) return;
 
-      // Bearing-correct arrow at midpoint
-      const midLat = (fromCoord[0] + toCoord[0]) / 2;
-      const midLng = (fromCoord[1] + toCoord[1]) / 2;
-      const bearing = Math.atan2(toCoord[1] - fromCoord[1], toCoord[0] - fromCoord[0]) * (180 / Math.PI);
-      const arrowIcon = L.divIcon({
-        html: `<div style="color:#3b9ece;font-size:18px;line-height:1;transform:rotate(${bearing - 90}deg);">▲</div>`,
-        className: '',
-        iconSize: [18, 18],
-        iconAnchor: [9, 9],
-      });
-      layersRef.current.push(L.marker([midLat, midLng], { icon: arrowIcon, interactive: false }).addTo(map));
-    }
+      const waypoints = safeRouteMap[d.day] || [];
+      const legCoords = buildLegCoords(fromCoord, toCoord, waypoints);
+      const isActive = i === activeDay;
+
+      if (safeRoute && waypoints.length > 0) {
+        // Draw safe route line (green tint)
+        const safeLine = L.polyline(legCoords, {
+          color: isActive ? '#34d399' : 'rgba(52,211,153,0.35)',
+          weight: isActive ? 4 : 2,
+          opacity: 0.9,
+        }).addTo(map);
+        layersRef.current.push(safeLine);
+
+        // Draw waypoint markers
+        waypoints.forEach(wp => {
+          const wpIcon = L.divIcon({
+            html: `<div title="${wp.note || 'Waypoint'}" style="width:10px;height:10px;background:#34d399;border:2px solid #fff;border-radius:50%;box-shadow:0 1px 4px rgba(0,0,0,0.4);"></div>`,
+            className: '',
+            iconSize: [10, 10],
+            iconAnchor: [5, 5],
+          });
+          const wpMarker = L.marker([wp.lat, wp.lng], { icon: wpIcon, interactive: !!wp.note })
+            .addTo(map);
+          if (wp.note) wpMarker.bindPopup(`<div style="font-family:sans-serif;font-size:12px;color:#0a1628">⚓ ${wp.note}</div>`);
+          layersRef.current.push(wpMarker);
+        });
+      } else if (isActive) {
+        // No safe route yet — draw simple active line
+        const activeLine = L.polyline([fromCoord, toCoord], {
+          color: '#3b9ece',
+          weight: 4,
+          opacity: 0.95,
+        }).addTo(map);
+        layersRef.current.push(activeLine);
+      }
+
+      // Direction arrow at midpoint of active leg
+      if (isActive) {
+        const midCoord = legCoords[Math.floor(legCoords.length / 2)];
+        const nextCoord = legCoords[Math.floor(legCoords.length / 2) + 1] || toCoord;
+        const bearing = Math.atan2(nextCoord[1] - midCoord[1], nextCoord[0] - midCoord[0]) * (180 / Math.PI);
+        const arrowIcon = L.divIcon({
+          html: `<div style="color:${safeRoute && waypoints.length > 0 ? '#34d399' : '#3b9ece'};font-size:18px;line-height:1;transform:rotate(${bearing - 90}deg);">▲</div>`,
+          className: '',
+          iconSize: [18, 18],
+          iconAnchor: [9, 9],
+        });
+        layersRef.current.push(L.marker(midCoord, { icon: arrowIcon, interactive: false }).addTo(map));
+      }
+    });
 
     // Day markers
     days.forEach((d, i) => {
@@ -154,7 +204,7 @@ export default function MapView({ itinerary, activeDay, onDaySelect }) {
     });
 
     // Final destination marker (🏁)
-    if (last?.toLat && last?.toLng) {
+    if (lastCoord) {
       const endIcon = L.divIcon({
         html: `<div style="width:26px;height:26px;background:rgba(212,168,64,0.9);border:2px solid #fff;border-radius:50%;display:flex;align-items:center;justify-content:center;font-size:13px;box-shadow:0 2px 8px rgba(0,0,0,0.4);">🏁</div>`,
         className: '',
@@ -162,17 +212,19 @@ export default function MapView({ itinerary, activeDay, onDaySelect }) {
         iconAnchor: [13, 13],
       });
       layersRef.current.push(
-        L.marker([last.toLat, last.toLng], { icon: endIcon })
+        L.marker(lastCoord, { icon: endIcon })
           .addTo(map)
           .bindPopup(`<div style="font-family:sans-serif;font-weight:700;color:#0a1628">🏁 Cilj: ${last.to || ''}</div>`)
       );
     }
 
     // Fit map to full route
-    if (routeCoords.length > 0) {
-      map.fitBounds(routeCoords, { padding: [50, 50], maxZoom: 10 });
+    if (allRouteCoords.length > 0) {
+      map.fitBounds(allRouteCoords, { padding: [50, 50], maxZoom: 10 });
     }
-  }, [itinerary, activeDay]);
+  }, [itinerary, activeDay, safeRoute]);
+
+  const hasSafeRoute = safeRoute && safeRoute.some(leg => leg.waypoints?.length > 0);
 
   return (
     <div style={{ borderRadius: 16, overflow: 'hidden', border: '1px solid rgba(59,158,206,0.2)', marginBottom: 20 }}>
@@ -186,10 +238,13 @@ export default function MapView({ itinerary, activeDay, onDaySelect }) {
         color: '#5a9ec0',
         borderTop: '1px solid rgba(59,158,206,0.1)',
         flexWrap: 'wrap',
+        alignItems: 'center',
       }}>
         <span>🔵 Aktivna pot</span>
         <span style={{ color: 'rgba(59,158,206,0.5)' }}>- - Celotna ruta</span>
-        <span style={{ color: '#34d399' }}>↑ Smer vetra (zeleno = varno)</span>
+        {hasSafeRoute && <span style={{ color: '#34d399' }}>🛡️ Varna plovbna pot</span>}
+        {hasSafeRoute && <span style={{ color: '#34d399', fontSize: 10 }}>● Varni waypointi</span>}
+        <span style={{ color: '#34d399', marginLeft: 'auto' }}>↑ Smer vetra (zeleno = varno)</span>
         <span style={{ color: '#fbbf24' }}>↑ Zmeren veter</span>
         <span style={{ color: '#f87171' }}>↑ Močan veter</span>
       </div>

@@ -1,6 +1,6 @@
 import { useState, useRef } from 'react';
 import { useTranslation } from 'react-i18next';
-import { generateTrip, joinWaitlist } from './lib/api.js';
+import { generateTrip, joinWaitlist, getSafeRoute } from './lib/api.js';
 import MapView from './components/MapView.jsx';
 import WindChart from './components/WindChart.jsx';
 import AIChat from './components/AIChat.jsx';
@@ -114,6 +114,8 @@ export default function App() {
   const [query, setQuery] = useState('');
   const [loading, setLoading] = useState(false);
   const [itinerary, setItinerary] = useState(null);
+  const [safeRoute, setSafeRoute] = useState(null);
+  const [safeRouteLoading, setSafeRouteLoading] = useState(false);
   const [streamText, setStreamText] = useState('');
   const [activeDay, setActiveDay] = useState(0);
   const [showWelcome, setShowWelcome] = useState(true);
@@ -134,7 +136,14 @@ export default function App() {
       clearInterval(interval);
       if (data.success && data.itinerary) {
         setItinerary(data.itinerary);
+        setSafeRoute(null);
         setActiveDay(0); setStreamText(''); setViewTab('itinerary');
+        // Fetch safe route in background
+        setSafeRouteLoading(true);
+        getSafeRoute(data.itinerary.days, 2.0, 'sailboat')
+          .then(sr => setSafeRoute(sr))
+          .catch(e => console.warn('Safe route failed:', e))
+          .finally(() => setSafeRouteLoading(false));
         setTimeout(() => resultRef.current?.scrollIntoView({ behavior: 'smooth', block: 'start' }), 100);
       } else throw new Error(data.error || 'Failed to generate itinerary');
     } catch (err) { clearInterval(interval); setError(err.message); setStreamText(''); }
@@ -274,7 +283,12 @@ export default function App() {
 
               {/* MAP VIEW */}
               {viewTab === 'map' && (
-                <MapView itinerary={itinerary} activeDay={activeDay} onDaySelect={setActiveDay} />
+                {safeRouteLoading && (
+                  <div style={{ textAlign: 'center', color: '#34d399', fontSize: 12, marginBottom: 8, opacity: 0.8 }}>
+                    🛡️ Izračunavam varno plovbno pot...
+                  </div>
+                )}
+                <MapView itinerary={itinerary} activeDay={activeDay} onDaySelect={setActiveDay} safeRoute={safeRoute} />
               )}
 
               {/* WIND VIEW */}

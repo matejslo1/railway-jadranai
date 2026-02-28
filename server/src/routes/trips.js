@@ -1,7 +1,7 @@
 // Trip generation + chat routes
 const express = require('express');
 const router = express.Router();
-const { generateTrip, chatWithTrip } = require('../services/ai');
+const { generateTrip, chatWithTrip, generateSafeRoute } = require('../services/ai');
 const { getCombinedForecast } = require('../services/weather');
 const { tripLimiter } = require('../middleware/rateLimit');
 
@@ -75,6 +75,26 @@ router.post('/chat', tripLimiter, async (req, res) => {
   } catch (err) {
     console.error('[Chat] Error:', err.message);
     res.status(500).json({ error: 'Chat failed. Please try again.' });
+  }
+});
+
+// POST /api/trips/safe-route
+// Generates safe waypoints for an existing itinerary based on vessel characteristics
+router.post('/safe-route', tripLimiter, async (req, res) => {
+  try {
+    const { days, vesselDraft, vesselType } = req.body;
+    if (!days || !Array.isArray(days) || days.length === 0) {
+      return res.status(400).json({ error: 'days array is required' });
+    }
+    const draft = parseFloat(vesselDraft) || 2.0;
+    const type = vesselType || 'sailboat';
+    console.log(`[SafeRoute] ${days.length} legs, draft=${draft}m, type=${type}`);
+    const safeRoute = await generateSafeRoute(days, draft, type);
+    console.log(`[SafeRoute] Generated ${safeRoute.length} legs with waypoints`);
+    res.json({ success: true, safeRoute });
+  } catch (err) {
+    console.error('[SafeRoute] Error:', err.message);
+    res.status(500).json({ error: 'Failed to generate safe route. Please try again.' });
   }
 });
 
