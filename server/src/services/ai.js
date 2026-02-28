@@ -250,6 +250,4 @@ ${JSON.stringify(days.map(d => ({
   }
 }
 
-module.exports
-
 module.exports = { generateTrip, chatWithTrip, generateSafeRoute };

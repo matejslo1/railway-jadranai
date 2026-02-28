@@ -168,6 +168,15 @@ const [error, setError] = useState(null);
     setActiveDay(0);
     setShowWelcome(false);
     setViewTab('itinerary');
+
+    // Fetch safe route also for saved trips (otherwise map can draw straight lines over land)
+    setSafeRoute(null);
+    setSafeRouteLoading(true);
+    getSafeRoute(savedItinerary?.days, vessel)
+      .then((sr) => setSafeRoute(sr))
+      .catch((e) => console.warn('Safe route failed:', e))
+      .finally(() => setSafeRouteLoading(false));
+
     setTimeout(() => resultRef.current?.scrollIntoView({ behavior: 'smooth', block: 'start' }), 100);
   };
 
@@ -194,64 +203,7 @@ const [error, setError] = useState(null);
             </div>
             <p className="subtitle">{t('subtitle')}</p>
             
-            <div className="vessel-section">
-              <div className="vessel-title">{t('vessel_profile')}</div>
-              <div className="vessel-grid">
-                <div className="vessel-field">
-                  <label>{t('vessel_type')}</label>
-                  <select
-                    value={vessel.type}
-                    onChange={(e) => setVessel(v => ({ ...v, type: e.target.value }))}
-                    disabled={loading}
-                  >
-                    <option value="motorboat">{t('vessel_motorboat')}</option>
-                    <option value="sailboat">{t('vessel_sailboat')}</option>
-                  </select>
-                </div>
-
-                <div className="vessel-field">
-                  <label title={t('vessel_draft_help')}>{t('vessel_draft')}</label>
-                  <input
-                    type="number"
-                    inputMode="decimal"
-                    step="0.1"
-                    min="0.1"
-                    value={vessel.draft_m}
-                    onChange={(e) => setVessel(v => ({ ...v, draft_m: parseFloat(e.target.value) || 0 }))}
-                    disabled={loading}
-                  />
-                </div>
-
-                <div className="vessel-field">
-                  <label title={t('vessel_air_draft_help')}>{t('vessel_air_draft')}</label>
-                  <input
-                    type="number"
-                    inputMode="decimal"
-                    step="0.1"
-                    min="0.1"
-                    value={vessel.air_draft_m}
-                    onChange={(e) => setVessel(v => ({ ...v, air_draft_m: parseFloat(e.target.value) || 0 }))}
-                    disabled={loading}
-                  />
-                </div>
-
-                <div className="vessel-field vessel-field-wide">
-                  <label title={t('vessel_speed_help')}>{t('vessel_speed')} <span className="vessel-optional">({t('vessel_optional')})</span></label>
-                  <input
-                    type="number"
-                    inputMode="decimal"
-                    step="0.5"
-                    min="1"
-                    value={vessel.cruise_speed_kn ?? ''}
-                    onChange={(e) => setVessel(v => ({ ...v, cruise_speed_kn: e.target.value === '' ? null : (parseFloat(e.target.value) || null) }))}
-                    disabled={loading}
-                    placeholder="7"
-                  />
-                </div>
-              </div>
-            </div>
-
-{showWelcome && (
+            {showWelcome && (
               <div className="fade-in">
                 <p className="tagline">{t('tagline')}</p>
                 <div className="badge"><span className="live-dot" /> {t('badge')}</div>
@@ -428,6 +380,64 @@ const [error, setError] = useState(null);
               <div style={{ marginTop: 16 }}>
                 <AIChat itinerary={itinerary} language={i18n.language} />
               </div>
+
+              <div className="vessel-section">
+                            <div className="vessel-title">{t('vessel_profile')}</div>
+                            <div className="vessel-grid">
+                              <div className="vessel-field">
+                                <label>{t('vessel_type')}</label>
+                                <select
+                                  value={vessel.type}
+                                  onChange={(e) => setVessel(v => ({ ...v, type: e.target.value }))}
+                                  disabled={loading}
+                                >
+                                  <option value="motorboat">{t('vessel_motorboat')}</option>
+                                  <option value="sailboat">{t('vessel_sailboat')}</option>
+                                </select>
+                              </div>
+              
+                              <div className="vessel-field">
+                                <label title={t('vessel_draft_help')}>{t('vessel_draft')}</label>
+                                <input
+                                  type="number"
+                                  inputMode="decimal"
+                                  step="0.1"
+                                  min="0.1"
+                                  value={vessel.draft_m}
+                                  onChange={(e) => setVessel(v => ({ ...v, draft_m: parseFloat(e.target.value) || 0 }))}
+                                  disabled={loading}
+                                />
+                              </div>
+              
+                              <div className="vessel-field">
+                                <label title={t('vessel_air_draft_help')}>{t('vessel_air_draft')}</label>
+                                <input
+                                  type="number"
+                                  inputMode="decimal"
+                                  step="0.1"
+                                  min="0.1"
+                                  value={vessel.air_draft_m}
+                                  onChange={(e) => setVessel(v => ({ ...v, air_draft_m: parseFloat(e.target.value) || 0 }))}
+                                  disabled={loading}
+                                />
+                              </div>
+              
+                              <div className="vessel-field vessel-field-wide">
+                                <label title={t('vessel_speed_help')}>{t('vessel_speed')} <span className="vessel-optional">({t('vessel_optional')})</span></label>
+                                <input
+                                  type="number"
+                                  inputMode="decimal"
+                                  step="0.5"
+                                  min="1"
+                                  value={vessel.cruise_speed_kn ?? ''}
+                                  onChange={(e) => setVessel(v => ({ ...v, cruise_speed_kn: e.target.value === '' ? null : (parseFloat(e.target.value) || null) }))}
+                                  disabled={loading}
+                                  placeholder="7"
+                                />
+                              </div>
+                            </div>
+                          </div>
+
 
               {itinerary.packingTips?.length > 0 && (
                 <div className="trip-header" style={{ marginTop: 16 }}>

@@ -210,16 +210,7 @@ export default function MapView({ itinerary, activeDay, onDaySelect, safeRoute }
       });
     }
 
-    // ── 3. Background dashed route ─────────────────────────────────────────
-    if (routePoints.length > 1) {
-      layers.current.push(
-        L.polyline(routePoints, {
-          color: 'rgba(59,130,246,0.18)', weight: 2, dashArray: '10 8',
-        }).addTo(map)
-      );
-    }
-
-    // ── 4. Per-leg colored segments ────────────────────────────────────────
+    // ── 3. Per-leg colored segments (safe route only) ──────────────────────── ────────────────────────────────────────
     for (let i = 0; i < stops.length; i++) {
       const from = stops[i].coord;
       const to = i < stops.length - 1 ? stops[i + 1].coord : finalCoord;
@@ -232,11 +223,12 @@ export default function MapView({ itinerary, activeDay, onDaySelect, safeRoute }
         .map(w => [+w.lat, +w.lng]);
 
       const hasSafe = safeWps.length > 0;
-      const color = isActive
-        ? (hasSafe ? '#34d399' : '#3b9ece')
-        : (hasSafe ? '#34d39966' : '#3b9ece66');
 
-      const legPts = hasSafe ? [from, ...safeWps, to] : [from, to];
+      // Show ONLY the safe route; if we don't have safe waypoints for this leg, skip drawing it.
+      if (!hasSafe) continue;
+
+      const color = isActive ? '#34d399' : '#34d39966';
+      const legPts = [from, ...safeWps, to];
 
       layers.current.push(
         L.polyline(legPts, {
