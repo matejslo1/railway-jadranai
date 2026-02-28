@@ -210,7 +210,9 @@ export default function MapView({ itinerary, activeDay, onDaySelect, safeRoute }
       });
     }
 
-    // ── 3. Per-leg colored segments (safe route only) ──────────────────────── ────────────────────────────────────────
+    // ── 3. Background dashed route — REMOVED: show only safe route ────────
+
+    // ── 4. Per-leg colored segments ────────────────────────────────────────
     for (let i = 0; i < stops.length; i++) {
       const from = stops[i].coord;
       const to = i < stops.length - 1 ? stops[i + 1].coord : finalCoord;
@@ -223,10 +225,10 @@ export default function MapView({ itinerary, activeDay, onDaySelect, safeRoute }
         .map(w => [+w.lat, +w.lng]);
 
       const hasSafe = safeWps.length > 0;
-
-      // Show ONLY the safe route; if we don't have safe waypoints for this leg, skip drawing it.
+      
+      // Only draw if we have a safe route; skip direct lines that could cross land
       if (!hasSafe) continue;
-
+      
       const color = isActive ? '#34d399' : '#34d39966';
       const legPts = [from, ...safeWps, to];
 
@@ -362,13 +364,9 @@ export default function MapView({ itinerary, activeDay, onDaySelect, safeRoute }
           {hasSafeRoute && (
             <span style={{ display: 'flex', alignItems: 'center', gap: 5 }}>
               <span style={{ display: 'inline-block', width: 22, height: 3, background: '#34d399', borderRadius: 2 }}/>
-              <span style={{ color: '#34d399', fontSize: 10, fontWeight: 600 }}>Varna pot</span>
+              <span style={{ color: '#34d399', fontSize: 10, fontWeight: 600 }}>Varna plovbna pot</span>
             </span>
           )}
-          <span style={{ display: 'flex', alignItems: 'center', gap: 5 }}>
-            <span style={{ display: 'inline-block', width: 22, height: 3, background: '#3b9ece', borderRadius: 2 }}/>
-            <span style={{ color: '#3b9ece', fontSize: 10 }}>Ruta</span>
-          </span>
         </span>
       </div>
 

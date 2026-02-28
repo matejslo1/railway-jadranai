@@ -4,6 +4,8 @@ const booleanPointInPolygon = require('@turf/boolean-point-in-polygon').default 
 const bbox = require('@turf/bbox').default || require('@turf/bbox');
 const buffer = require('@turf/buffer').default || require('@turf/buffer');
 const lineIntersect = require('@turf/line-intersect').default || require('@turf/line-intersect');
+const turfDistance = require('@turf/distance').default || require('@turf/distance');
+const turfSimplify = require('@turf/simplify').default || require('@turf/simplify');
 
 // Deterministic water-safe routing (Adriatic MVP)
 // Goal: never draw a segment that crosses land.
@@ -49,7 +51,7 @@ function clampAdriatic(lat, lng) {
 }
 
 function haversineKm(a, b) {
-  return turf.distance(point([a[1], a[0]]), point([b[1], b[0]]), { units: 'kilometers' });
+  return turfDistance(point([a[1], a[0]]), point([b[1], b[0]]), { units: 'kilometers' });
 }
 
 function key(lat, lng) {
@@ -204,7 +206,7 @@ function simplifyAndSmooth(path) {
 
   // Simplify a bit (avoid huge point count)
   const line = lineString(path.map(p => [p[1], p[0]]));
-  const simplified = turf.simplify(line, { tolerance: 0.002, highQuality: false });
+  const simplified = turfSimplify(line, { tolerance: 0.002, highQuality: false });
   const coords = simplified.geometry.coordinates.map(c => [c[1], c[0]]);
 
   // Ensure no segment crosses land after simplify; if it does, keep original.
