@@ -49,18 +49,8 @@ function clampAdriatic(lat, lng) {
 }
 
 function haversineKm(a, b) {
-  const R = 6371; // km
-  const toRad = (d) => (d * Math.PI) / 180;
-  const dLat = toRad(b[0] - a[0]);
-  const dLng = toRad(b[1] - a[1]);
-  const lat1 = toRad(a[0]);
-  const lat2 = toRad(b[0]);
-  const h =
-    Math.sin(dLat / 2) * Math.sin(dLat / 2) +
-    Math.cos(lat1) * Math.cos(lat2) * Math.sin(dLng / 2) * Math.sin(dLng / 2);
-  return 2 * R * Math.asin(Math.min(1, Math.sqrt(h)));
+  return turf.distance(point([a[1], a[0]]), point([b[1], b[0]]), { units: 'kilometers' });
 }
-
 
 function key(lat, lng) {
   return `${lat.toFixed(5)},${lng.toFixed(5)}`;
@@ -78,7 +68,7 @@ function neighbors(lat, lng, dLat, dLng) {
   return res;
 }
 
-function aStarWaterRoute(from, to, debugOut) {
+function aStarWaterRoute(from, to) {
   // Build a limited search window around the leg
   const distKm = haversineKm(from, to);
 
@@ -97,19 +87,6 @@ function aStarWaterRoute(from, to, debugOut) {
   const maxLat = Math.max(from[0], to[0]) + padLat;
   const minLng = Math.min(from[1], to[1]) - padLng;
   const maxLng = Math.max(from[1], to[1]) + padLng;
-
-  if (debugOut) {
-    debugOut.meta = {
-      stepKm,
-      dLat,
-      dLng,
-      bbox: { minLat, maxLat, minLng, maxLng },
-      landBufferKm: LAND_BUFFER_KM,
-    };
-    debugOut.explored = [];
-    debugOut.blocked = [];
-  }
-
 
   // Snap function to grid
   const snap = (lat, lng) => {
@@ -192,33 +169,18 @@ function aStarWaterRoute(from, to, debugOut) {
         path.push([clat, clng]);
       }
       path.reverse();
-      if (debugOut) {
-        debugOut.found = true;
-        debugOut.iterations = iter;
-        debugOut.path = path;
-      }
       return path;
     }
 
     open.delete(currentK);
     const [clat, clng] = parseK(currentK);
-    if (debugOut && debugOut.explored.length < 2000) debugOut.explored.push([clat, clng]);
 
     for (const nbRaw of neighbors(clat, clng, dLat, dLng)) {
       const nb = clampAdriatic(nbRaw[0], nbRaw[1]);
-      if (nb[0] < minLat || nb[0] > maxLat || nb[1] < minLng || nb[1] > maxLng) {
-        if (debugOut && debugOut.blocked.length < 1000) debugOut.blocked.push([nb[0], nb[1]]);
-        continue;
-      }
-      if (isOnLand(nb[0], nb[1])) {
-        if (debugOut && debugOut.blocked.length < 1000) debugOut.blocked.push([nb[0], nb[1]]);
-        continue;
-      }
+      if (nb[0] < minLat || nb[0] > maxLat || nb[1] < minLng || nb[1] > maxLng) continue;
+      if (isOnLand(nb[0], nb[1])) continue;
       // Prevent edges crossing land too
-      if (crossesLand([clat, clng], nb)) {
-        if (debugOut && debugOut.blocked.length < 1000) debugOut.blocked.push([nb[0], nb[1]]);
-        continue;
-      }
+      if (crossesLand([clat, clng], nb)) continue;
 
       const nbK = key(nb[0], nb[1]);
       const tentativeG = (gScore.get(currentK) ?? Infinity) + haversineKm([clat, clng], nb);
@@ -234,66 +196,25 @@ function aStarWaterRoute(from, to, debugOut) {
     }
   }
 
-  if (debugOut) { debugOut.found = false; debugOut.iterations = iter; }
   return null;
-}
-
-function rdpSimplify(points, epsDeg) {
-  if (!points || points.length < 3) return points;
-  const sq = (x) => x * x;
-  const distToSegSq = (p, a, b) => {
-    // p,a,b are [lat,lng]
-    const x = p[1], y = p[0];
-    const x1 = a[1], y1 = a[0];
-    const x2 = b[1], y2 = b[0];
-    const dx = x2 - x1, dy = y2 - y1;
-    if (dx === 0 && dy === 0) return sq(x - x1) + sq(y - y1);
-    const t = ((x - x1) * dx + (y - y1) * dy) / (dx * dx + dy * dy);
-    const tt = Math.max(0, Math.min(1, t));
-    const xx = x1 + tt * dx;
-    const yy = y1 + tt * dy;
-    return sq(x - xx) + sq(y - yy);
-  };
-
-  const epsSq = epsDeg * epsDeg;
-
-  const recur = (pts) => {
-    if (pts.length < 3) return pts;
-    const a = pts[0];
-    const b = pts[pts.length - 1];
-    let idx = -1;
-    let best = -1;
-    for (let i = 1; i < pts.length - 1; i++) {
-      const d = distToSegSq(pts[i], a, b);
-      if (d > best) {
-        best = d;
-        idx = i;
-      }
-    }
-    if (best <= epsSq) return [a, b];
-    const left = recur(pts.slice(0, idx + 1));
-    const right = recur(pts.slice(idx));
-    return left.slice(0, -1).concat(right);
-  };
-
-  return recur(points);
 }
 
 function simplifyAndSmooth(path) {
   if (!path || path.length < 3) return path;
 
-  // Simplify to reduce point count; keep it conservative.
-  // epsDeg roughly: 0.002 ~ 200m at mid-latitudes
-  const simplified = rdpSimplify(path, 0.002);
+  // Simplify a bit (avoid huge point count)
+  const line = lineString(path.map(p => [p[1], p[0]]));
+  const simplified = turf.simplify(line, { tolerance: 0.002, highQuality: false });
+  const coords = simplified.geometry.coordinates.map(c => [c[1], c[0]]);
 
   // Ensure no segment crosses land after simplify; if it does, keep original.
-  for (let i = 0; i < simplified.length - 1; i++) {
-    if (crossesLand(simplified[i], simplified[i + 1])) return path;
+  for (let i = 0; i < coords.length - 1; i++) {
+    if (crossesLand(coords[i], coords[i + 1])) return path;
   }
-  return simplified;
+  return coords;
 }
 
-function buildSafeLeg(from, to, opts = {}) {
+function buildSafeLeg(from, to) {
   // If direct is safe, still return a lightly smoothed path (3 points) for nicer visuals
   if (!crossesLand(from, to) && !isOnLand(from[0], from[1]) && !isOnLand(to[0], to[1])) {
     const mid = [(from[0] + to[0]) / 2, (from[1] + to[1]) / 2];
@@ -305,19 +226,13 @@ function buildSafeLeg(from, to, opts = {}) {
     const py = dx / len;
     const off = 0.01;
     const mid2 = clampAdriatic(mid[0] + off * py, mid[1] + off * px);
-    const wps = [mid2];
-    if (opts.debug) {
-      return { wps, debug: { meta: { direct: true, landBufferKm: LAND_BUFFER_KM } } };
-    }
-    return wps;
+    return [mid2];
   }
 
-  const dbg = opts.debug ? {} : null;
-  const path = aStarWaterRoute(from, to, dbg);
+  const path = aStarWaterRoute(from, to);
   if (!path) {
-    // No water-only path found within limits.
-    if (opts.debug) return { wps: [], debug: dbg || { found: false } };
-    return [];
+    // fallback: just add midpoints (better than nothing)
+    return [[(from[0] + to[0]) / 2, (from[1] + to[1]) / 2]];
   }
 
   const smooth = simplifyAndSmooth(path);
@@ -325,40 +240,23 @@ function buildSafeLeg(from, to, opts = {}) {
   // Return waypoints excluding endpoints
   const inner = smooth.slice(1, -1);
   // Guarantee at least 1 waypoint
-  let wps = inner;
-  if (wps.length === 0) wps = [[(from[0] + to[0]) / 2, (from[1] + to[1]) / 2]];
-  if (opts.debug) {
-    return { wps, debug: dbg };
-  }
-  return wps;
+  if (inner.length === 0) return [[(from[0] + to[0]) / 2, (from[1] + to[1]) / 2]];
+  return inner;
 }
 
-function generateSafeRouteLegs(days, opts = {}) {
+function generateSafeRouteLegs(days) {
   return (days || []).map(d => {
     const from = [Number(d.fromLat), Number(d.fromLng)];
     const to = [Number(d.toLat), Number(d.toLng)];
+    const wpsCoords = buildSafeLeg(from, to);
 
-    try {
-      const built = buildSafeLeg(from, to, opts);
-      const wpsCoords = Array.isArray(built) ? built : (built.wps || []);
-      const debug = (!Array.isArray(built) && built.debug) ? built.debug : null;
-      const failed = (wpsCoords.length === 0) && crossesLand(from, to);
+    const waypoints = wpsCoords.map((c, idx) => ({
+      lat: Number(c[0].toFixed(5)),
+      lng: Number(c[1].toFixed(5)),
+      note: idx === 0 ? 'safe route' : ''
+    }));
 
-      const waypoints = wpsCoords.map((c, idx) => ({
-        lat: Number(c[0].toFixed(5)),
-        lng: Number(c[1].toFixed(5)),
-        note: idx === 0 ? 'safe route' : ''
-      }));
-
-      const out = { day: d.day, from: d.from, to: d.to, waypoints, failed };
-      if (opts && opts.debug) out.debug = debug;
-      return out;
-    } catch (err) {
-      // Never crash the whole request because of one leg — report failure instead.
-      const out = { day: d.day, from: d.from, to: d.to, waypoints: [], failed: true, error: String(err?.message || err) };
-      if (opts && opts.debug) out.debug = { error: out.error };
-      return out;
-    }
+    return { day: d.day, from: d.from, to: d.to, waypoints };
   });
 }
 

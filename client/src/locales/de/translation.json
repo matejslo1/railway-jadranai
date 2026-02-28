@@ -58,5 +58,8 @@
   "vessel_draft_help": "Wie tief das Boot unter die Wasserlinie reicht.",
   "vessel_air_draft_help": "Höchster Punkt über der Wasserlinie (z. B. Mastspitze).",
   "vessel_speed_help": "Für ETA und Etappenplanung.",
-  "water_only": "Nur über Wasser (Land vermeiden)"
+  "add_vessel": "+ Boot hinzufügen",
+  "hide_vessel": "Boot-Einstellungen ausblenden",
+  "mooring_warning_shallow": "Achtung: Tiefgang {{draft}}m, Mindesttiefe {{minDepth}}m. Lieber Marina oder tieferer Ankerplatz.",
+  "mooring_ok": "Tiefgang {{draft}}m: Ankerplatz wirkt OK mit Sicherheitsreserve."
 }

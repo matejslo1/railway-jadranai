@@ -58,5 +58,8 @@
   "vessel_draft_help": "Koliko je plovilo duboko ispod vodne linije.",
   "vessel_air_draft_help": "Najviša točka iznad vodne linije (npr. vrh jarbola).",
   "vessel_speed_help": "Koristi se za ETA i planiranje etapa.",
-  "water_only": "Samo po vodi (izbjegavaj kopno)"
+  "add_vessel": "+ Dodaj svoje plovilo",
+  "hide_vessel": "Sakrij postavke plovila",
+  "mooring_warning_shallow": "Upozorenje: gaz {{draft}}m, sidrište min. dubina {{minDepth}}m. Radije marina ili dublje sidrište.",
+  "mooring_ok": "Gaz {{draft}}m: sidrište izgleda OK uz sigurnosnu rezervu."
 }

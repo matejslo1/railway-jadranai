@@ -58,5 +58,8 @@
   "vessel_draft_help": "How deep the boat sits below the waterline.",
   "vessel_air_draft_help": "Highest point above the waterline (e.g., top of mast).",
   "vessel_speed_help": "Used for ETA and day planning.",
-  "water_only": "Water-only routing (avoid land)"
+  "add_vessel": "+ Add your vessel",
+  "hide_vessel": "Hide vessel settings",
+  "mooring_warning_shallow": "Warning: draft {{draft}}m, anchorage minimum depth {{minDepth}}m. Prefer a marina or deeper anchorage.",
+  "mooring_ok": "Draft {{draft}}m: anchorage looks OK with a safety margin."
 }

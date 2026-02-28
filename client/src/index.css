@@ -50,7 +50,7 @@ body { background: var(--navy); color: var(--text); font-family: 'Outfit', sans-
 .waitlist-input-wrap input::placeholder { color: #3d6580; }
 .waitlist-btn { background: linear-gradient(135deg, #1a7fb5, var(--ocean)); border: none; border-radius: 10px; color: #fff; padding: 12px 20px; font-size: 14px; font-weight: 600; cursor: pointer; font-family: 'Outfit', sans-serif; white-space: nowrap; }
 .waitlist-btn:disabled { opacity: 0.6; }
-.waitlist-success { background: rgba(16,185,129,0.08); border: 1px solid rgba(16,185,129,0.2); border-radius: 12px; padding: 16px 20px; display: flex; align-items: center; gap: 8px; color: var(--green); font-size: 14px; max-width: 440px; margin: 0 auto; }
+.waitlist-success { background: rgba(16,185,129,0.08); border: 1px solid rgba(16,185,129,0.2); border-radius: 12px; padding: 16px 20px; display: flex; align-items: center; gap: 10px; color: var(--green); font-size: 14px; max-width: 440px; margin: 0 auto; }
 
 .loading { text-align: center; padding: 60px 20px; }
 .loading p { color: #5a9ec0; font-size: 15px; font-style: italic; }
@@ -139,7 +139,7 @@ body { background: var(--navy); color: var(--text); font-family: 'Outfit', sans-
 /* Vessel profile */
 .vessel-section { margin-top: 12px; background: rgba(20,40,65,0.55); border: 1px solid var(--ocean-border); border-radius: 14px; padding: 12px; backdrop-filter: blur(18px); }
 .vessel-title { color: var(--text-dim); font-size: 12px; letter-spacing: 1px; text-transform: uppercase; margin-bottom: 10px; }
-.vessel-grid { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 8px; }
+.vessel-grid { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 10px; }
 .vessel-field { display: flex; flex-direction: column; gap: 6px; }
 .vessel-field-wide { grid-column: span 3; }
 .vessel-field label { color: var(--text); font-size: 12px; }
@@ -152,75 +152,23 @@ body { background: var(--navy); color: var(--text); font-family: 'Outfit', sans-
 }
 
 
+/* Vessel inline toggle */
+.vessel-inline { margin-top: 8px; }
+.vessel-toggle { display: inline-flex; align-items: center; gap: 10px; background: transparent; border: 0; color: var(--text-dim); cursor: pointer; padding: 4px 0; font-family: 'Outfit', sans-serif; }
+.vessel-toggle:disabled { opacity: 0.6; cursor: not-allowed; }
+.vessel-toggle-icon { width: 18px; height: 18px; display: inline-flex; align-items: center; justify-content: center; border: 1px solid var(--ocean-border); border-radius: 6px; color: var(--text-bright); background: rgba(20,40,65,0.55); }
+.vessel-inline-panel { margin-top: 8px; background: rgba(20,40,65,0.35); border: 1px solid var(--ocean-border); border-radius: 12px; padding: 10px; backdrop-filter: blur(16px); }
+.vessel-grid-compact { grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 8px; }
+.vessel-grid-compact .vessel-field input, .vessel-grid-compact .vessel-field select { padding: 8px 10px; border-radius: 10px; }
+.vessel-grid-compact .vessel-field label { font-size: 11px; }
+@media (max-width: 900px) { .vessel-grid-compact { grid-template-columns: repeat(2, minmax(0, 1fr)); } }
+@media (max-width: 520px) { .vessel-grid-compact { grid-template-columns: 1fr; } }
 
-/* Vessel mini dropdown under the prompt input */
-.vessel-mini {
-  margin-top: 10px;
-  background: rgba(20,40,65,0.45);
-  border: 1px solid var(--ocean-border);
-  border-radius: 12px;
-  padding: 8px 10px;
-  backdrop-filter: blur(14px);
-}
 
-.vessel-mini > summary {
-  list-style: none;
-  cursor: pointer;
-  user-select: none;
-  color: var(--text-dim);
-  font-size: 12px;
-  letter-spacing: 0.6px;
-  text-transform: uppercase;
-  display: flex;
-  align-items: center;
-  gap: 8px;
-}
+/* Interesting details animation */
+.info-details { max-height: 0; overflow: hidden; opacity: 0; transform: translateY(-4px); transition: max-height 260ms ease, opacity 220ms ease, transform 220ms ease; }
+.info-details p { margin: 8px 0 0 0; color: var(--text); font-size: 12px; line-height: 1.4; }
+.info-details.info-open { max-height: 120px; opacity: 1; transform: translateY(0); }
 
-.vessel-mini > summary::-webkit-details-marker { display: none; }
-
-.vessel-mini-grid {
-  margin-top: 10px;
-  display: grid;
-  grid-template-columns: repeat(2, minmax(0, 1fr));
-  gap: 8px;
-}
-
-.vessel-mini .vessel-field label { font-size: 11px; color: var(--text); }
-.vessel-mini .vessel-field input,
-.vessel-mini .vessel-field select {
-  height: 30px;
-  padding: 6px 10px;
-  border-radius: 10px;
-}
-
-.safe-route-msg {
-  margin-top: 10px;
-  display: flex;
-  gap: 8px;
-  align-items: center;
-  justify-content: space-between;
-  color: var(--text);
-  font-size: 12px;
-  background: rgba(0,0,0,0.18);
-  border: 1px solid rgba(255,255,255,0.08);
-  border-radius: 10px;
-  padding: 8px 10px;
-}
-
-.mini-btn {
-  padding: 6px 10px;
-  border-radius: 10px;
-  border: 1px solid rgba(255,255,255,0.14);
-  background: rgba(255,255,255,0.06);
-  color: var(--text);
-  cursor: pointer;
-}
-
-.mini-btn:disabled { opacity: 0.6; cursor: not-allowed; }
-
-@media (max-width: 900px) {
-  .vessel-mini-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); }
-}
-
-.vessel-check { grid-column: 1 / -1; }
-.vessel-check input { width: 16px; height: 16px; }
+/* Mooring note */
+.mooring-note { margin-top: 6px; font-size: 12px; color: #fbbf24; }

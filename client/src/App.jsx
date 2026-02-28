@@ -116,12 +116,11 @@ export default function App() {
   const [itinerary, setItinerary] = useState(null);
   const [safeRoute, setSafeRoute] = useState(null);
   const [safeRouteLoading, setSafeRouteLoading] = useState(false);
-  const [safeRouteError, setSafeRouteError] = useState(null);
   const [streamText, setStreamText] = useState('');
   const [activeDay, setActiveDay] = useState(0);
   const [showWelcome, setShowWelcome] = useState(true);
   
-  const DEFAULT_VESSEL = { type: 'sailboat', draft_m: 2.0, air_draft_m: 15.0, cruise_speed_kn: 7, water_only: true };
+  const DEFAULT_VESSEL = { type: 'sailboat', draft_m: 2.0, air_draft_m: 15.0, cruise_speed_kn: 7 };
   const [vessel, setVessel] = useState(() => {
     try { return JSON.parse(localStorage.getItem('jadran_vessel') || '') || DEFAULT_VESSEL; }
     catch { return DEFAULT_VESSEL; }
@@ -131,15 +130,12 @@ export default function App() {
     try { localStorage.setItem('jadran_vessel', JSON.stringify(vessel)); } catch {}
   }, [vessel]);
 
-  const [debugOverlay, setDebugOverlay] = useState(() => {
-    try { return JSON.parse(localStorage.getItem('jadran_debug_overlay') || 'false'); } catch { return false; }
-  });
-  useEffect(() => {
-    try { localStorage.setItem('jadran_debug_overlay', JSON.stringify(debugOverlay)); } catch {}
-  }, [debugOverlay]);
+  const [vesselOpen, setVesselOpen] = useState(false);
 
 const [error, setError] = useState(null);
   const [viewTab, setViewTab] = useState('itinerary');
+  const [expandedInfo, setExpandedInfo] = useState(null);
+  const [weatherTick, setWeatherTick] = useState(0);
   const resultRef = useRef(null);
 
   const plan = async (inputQuery) => {
@@ -157,42 +153,18 @@ const [error, setError] = useState(null);
         console.log('DAY0', JSON.stringify(data.itinerary.days?.[0], null, 2));
         setItinerary(data.itinerary);
         setSafeRoute(null);
-        setSafeRouteError(null);
         setActiveDay(0); setStreamText(''); setViewTab('itinerary');
-        // Fetch safe route
-        fetchSafeRoute(data.itinerary.days);
+        // Fetch safe route in background
+        setSafeRouteLoading(true);
+        getSafeRoute(data.itinerary.days, vessel)
+          .then(sr => setSafeRoute(sr))
+          .catch(e => console.warn('Safe route failed:', e))
+          .finally(() => setSafeRouteLoading(false));
         setTimeout(() => resultRef.current?.scrollIntoView({ behavior: 'smooth', block: 'start' }), 100);
       } else throw new Error(data.error || 'Failed to generate itinerary');
     } catch (err) { clearInterval(interval); setError(err.message); setStreamText(''); }
     setLoading(false);
   };
-
-  const fetchSafeRoute = (days) => {
-    if (!days || !Array.isArray(days) || days.length === 0) return Promise.resolve(null);
-    setSafeRouteLoading(true);
-    setSafeRouteError(null);
-    return getSafeRoute(days, vessel, undefined, undefined, { waterOnly: true, debug: !!debugOverlay })
-      .then((sr) => {
-        setSafeRoute(sr);
-        return sr;
-      })
-      .catch((e) => {
-        console.warn('Safe route failed:', e);
-        setSafeRoute(null);
-        setSafeRouteError(e?.message || 'Safe route failed');
-        throw e;
-      })
-      .finally(() => setSafeRouteLoading(false));
-  };
-
-  useEffect(() => {
-    if (itinerary?.days && Array.isArray(itinerary.days) && itinerary.days.length > 0) {
-      // Re-fetch to include/exclude debug points
-      fetchSafeRoute(itinerary.days);
-    }
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [debugOverlay]);
-
 
   const loadSavedTrip = (savedItinerary, savedQuery) => {
     setItinerary(savedItinerary);
@@ -200,22 +172,49 @@ const [error, setError] = useState(null);
     setActiveDay(0);
     setShowWelcome(false);
     setViewTab('itinerary');
-
-    // Fetch safe route also for saved trips (otherwise map can draw straight lines over land)
-    setSafeRoute(null);
-    setSafeRouteError(null);
-    fetchSafeRoute(savedItinerary?.days);
-
     setTimeout(() => resultRef.current?.scrollIntoView({ behavior: 'smooth', block: 'start' }), 100);
   };
 
-  const reset = () => { setItinerary(null); setQuery(''); setError(null); setShowWelcome(true); window.scrollTo({ top: 0, behavior: 'smooth' }); };
+  
+  async function refreshDayWeather(dayIndex) {
+    try {
+      const d = itinerary?.days?.[dayIndex];
+      if (!d) return;
+      const lat = d.fromLat ?? d.toLat;
+      const lng = d.fromLng ?? d.toLng;
+      if (lat == null || lng == null) return;
+      const r = await fetch(`${API_BASE}/api/weather?lat=${encodeURIComponent(lat)}&lng=${encodeURIComponent(lng)}&days=1`);
+      if (!r.ok) return;
+      const data = await r.json();
+      // Normalize to the existing UI shape if possible
+      const wx = data?.days?.[0] || data?.weather?.[0] || data?.[0] || data;
+      setItinerary(prev => {
+        if (!prev?.days?.[dayIndex]) return prev;
+        const days = prev.days.map((x, i) => i === dayIndex ? { ...x, weather: { ...x.weather, ...wx, refreshedAt: Date.now() } } : x);
+        return { ...prev, days };
+      });
+      setWeatherTick(t => t + 1);
+    } catch (_) {}
+  }
+
+const reset = () => { setItinerary(null); setQuery(''); setError(null); setShowWelcome(true); window.scrollTo({ top: 0, behavior: 'smooth' }); };
 
   const day = itinerary?.days?.[activeDay];
   const weather = day?.weather || {};
   const marina = day ? (typeof day.marina === 'string' ? { name: day.marina } : day.marina || {}) : {};
   const anchorage = day ? (typeof day.anchorage === 'string' ? { name: day.anchorage } : day.anchorage || {}) : {};
   const restaurant = day ? (typeof day.restaurant === 'string' ? { name: day.restaurant } : day.restaurant || {}) : {};
+
+  // Mooring suggestion based on vessel draft (very simple heuristic)
+  const draft = Number(vessel?.draft_m || 0);
+  const depthText = String(anchorage?.depth || day?.anchorageDepth || day?.anchorage_depth || '');
+  const mDepth = depthText.match(/(\d+(?:\.\d+)?)\s*[-–]\s*(\d+(?:\.\d+)?)/);
+  const minDepth = mDepth ? parseFloat(mDepth[1]) : null;
+  const safety = 0.5; // meters
+  const tooShallow = minDepth != null && draft > 0 && (draft + safety) > minDepth;
+  const mooringNote = tooShallow
+    ? `${t('mooring_warning_shallow', { draft: draft.toFixed(1), minDepth: minDepth.toFixed(1) })}`
+    : (draft > 0 ? `${t('mooring_ok', { draft: draft.toFixed(1) })}` : '');
   const suggestions = t('suggestions', { returnObjects: true });
 
   return (
@@ -231,8 +230,50 @@ const [error, setError] = useState(null);
               <h1 className="title">Jadran AI</h1>
             </div>
             <p className="subtitle">{t('subtitle')}</p>
-            
-            {showWelcome && (
+
+                <div className="vessel-field">
+                  <label title={t('vessel_draft_help')}>{t('vessel_draft')}</label>
+                  <input
+                    type="number"
+                    inputMode="decimal"
+                    step="0.1"
+                    min="0.1"
+                    value={vessel.draft_m}
+                    onChange={(e) => setVessel(v => ({ ...v, draft_m: parseFloat(e.target.value) || 0 }))}
+                    disabled={loading}
+                  />
+                </div>
+
+                <div className="vessel-field">
+                  <label title={t('vessel_air_draft_help')}>{t('vessel_air_draft')}</label>
+                  <input
+                    type="number"
+                    inputMode="decimal"
+                    step="0.1"
+                    min="0.1"
+                    value={vessel.air_draft_m}
+                    onChange={(e) => setVessel(v => ({ ...v, air_draft_m: parseFloat(e.target.value) || 0 }))}
+                    disabled={loading}
+                  />
+                </div>
+
+                <div className="vessel-field vessel-field-wide">
+                  <label title={t('vessel_speed_help')}>{t('vessel_speed')} <span className="vessel-optional">({t('vessel_optional')})</span></label>
+                  <input
+                    type="number"
+                    inputMode="decimal"
+                    step="0.5"
+                    min="1"
+                    value={vessel.cruise_speed_kn ?? ''}
+                    onChange={(e) => setVessel(v => ({ ...v, cruise_speed_kn: e.target.value === '' ? null : (parseFloat(e.target.value) || null) }))}
+                    disabled={loading}
+                    placeholder="7"
+                  />
+                </div>
+              </div>
+            </div>
+
+{showWelcome && (
               <div className="fade-in">
                 <p className="tagline">{t('tagline')}</p>
                 <div className="badge"><span className="live-dot" /> {t('badge')}</div>
@@ -259,75 +300,6 @@ const [error, setError] = useState(null);
                   {loading ? t('planning_btn') : <><Icons.Send /> {t('plan_btn')}</>}
                 </button>
               </div>
-
-              <details className="vessel-mini">
-                <summary>{t('vessel_profile')}</summary>
-                <div className="vessel-mini-grid">
-                  <div className="vessel-field">
-                    <label>{t('vessel_type')}</label>
-                    <select
-                      value={vessel.type}
-                      onChange={(e) => setVessel(v => ({ ...v, type: e.target.value }))}
-                      disabled={loading}
-                    >
-                      <option value="sailboat">{t('sailboat', { defaultValue: 'Jadrnica' })}</option>
-                      <option value="motorboat">{t('motorboat', { defaultValue: 'Motorno plovilo' })}</option>
-                    </select>
-                  </div>
-
-                  <div className="vessel-field">
-                    <label>{t('draft_m', { defaultValue: 'Ugrez (m)' })}</label>
-                    <input
-                      type="number"
-                      step="0.1"
-                      min="0"
-                      value={vessel.draft_m}
-                      onChange={(e) => setVessel(v => ({ ...v, draft_m: Number(e.target.value) }))}
-                      disabled={loading}
-                    />
-                  </div>
-
-                  <div className="vessel-field">
-                    <label>{t('air_draft_m', { defaultValue: 'Višina nad vodno linijo (m)' })}</label>
-                    <input
-                      type="number"
-                      step="0.1"
-                      min="0"
-                      value={vessel.air_draft_m ?? ''}
-                      onChange={(e) => setVessel(v => ({ ...v, air_draft_m: e.target.value === '' ? null : Number(e.target.value) }))}
-                      disabled={loading}
-                    />
-                  </div>
-
-                  <div className="vessel-field">
-                    <label>{t('cruise_speed_kn', { defaultValue: 'Potovalna hitrost (kn)' })}</label>
-                    <input
-                      type="number"
-                      step="0.1"
-                      min="0"
-                      value={vessel.cruise_speed_kn ?? ''}
-                      onChange={(e) => setVessel(v => ({ ...v, cruise_speed_kn: e.target.value === '' ? null : Number(e.target.value) }))}
-                      disabled={loading}
-                    />
-                  </div>
-                </div>
-
-                {safeRouteError && (
-                  <div className="safe-route-msg">
-                    <span>⚠️ {t('safe_route_failed', { defaultValue: 'Varna plovna pot ni uspela.' })}</span>
-                    <button className="btn btn-secondary" onClick={() => fetchSafeRoute(itinerary?.days)} disabled={loading || safeRouteLoading}>
-                      {t('retry', { defaultValue: 'Poskusi znova' })}
-                    </button>
-                  </div>
-                )}
-
-                {!safeRouteError && safeRouteLoading && (
-                  <div className="safe-route-msg">
-                    <span>🧭 {t('safe_route_loading', { defaultValue: 'Računam varno plovno pot…' })}</span>
-                  </div>
-                )}
-              </details>
-
             </div>
             {showWelcome && Array.isArray(suggestions) && (
               <div className="suggestions fade-in">
@@ -409,13 +381,7 @@ const [error, setError] = useState(null);
                       🛡️ Izračunavam varno plovbno pot...
                     </div>
                   )}
-                  <div style={{ display: 'flex', justifyContent: 'flex-end', marginBottom: 8 }}>
-                    <label style={{ fontSize: 12, opacity: 0.85, display: 'flex', gap: 8, alignItems: 'center' }}>
-                      <input type="checkbox" checked={debugOverlay} onChange={(e) => setDebugOverlay(e.target.checked)} />
-                      Debug overlay
-                    </label>
-                  </div>
-                  <MapView itinerary={itinerary} activeDay={activeDay} onDaySelect={setActiveDay} safeRoute={safeRoute} debugOverlay={debugOverlay} />
+                  <MapView itinerary={itinerary} activeDay={activeDay} onDaySelect={setActiveDay} safeRoute={safeRoute} />
                 </>
               )}
 
@@ -484,7 +450,6 @@ const [error, setError] = useState(null);
               <div style={{ marginTop: 16 }}>
                 <AIChat itinerary={itinerary} language={i18n.language} />
               </div>
-
 
               {itinerary.packingTips?.length > 0 && (
                 <div className="trip-header" style={{ marginTop: 16 }}>

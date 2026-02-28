@@ -58,5 +58,8 @@
   "vessel_draft_help": "Quanto l’imbarcazione pesca sotto la linea di galleggiamento.",
   "vessel_air_draft_help": "Punto più alto sopra la linea di galleggiamento (es. cima dell’albero).",
   "vessel_speed_help": "Usato per ETA e pianificazione giornaliera.",
-  "water_only": "Solo via mare (evita la terra)"
+  "add_vessel": "+ Aggiungi la tua imbarcazione",
+  "hide_vessel": "Nascondi impostazioni imbarcazione",
+  "mooring_warning_shallow": "Attenzione: pescaggio {{draft}}m, fondale minimo {{minDepth}}m. Meglio marina o ancoraggio più profondo.",
+  "mooring_ok": "Pescaggio {{draft}}m: ancoraggio OK con margine di sicurezza."
 }

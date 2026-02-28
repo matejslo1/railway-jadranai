@@ -165,22 +165,19 @@ AREAS TO AVOID:
 - Inside Kornati without local knowledge: many submerged rocks
 `;
 
-async function generateSafeRoute(days, vessel = { draft_m: 2.0, type: 'sailboat' }, opts = {}) {
+async function generateSafeRoute(days, vessel = { draft_m: 2.0, type: 'sailboat' }) {
   // 1) Deterministic land-avoid router (fast, no API keys)
-// Always try deterministic routing first. It never throws; legs can be marked failed.
-const deterministicLegs = generateSafeRouteLegs(days, opts);
+  try {
+    const safeLegs = generateSafeRouteLegs(days);
+    // If we produced waypoints, return them.
+    if (Array.isArray(safeLegs) && safeLegs.some(l => (l.waypoints || []).length >= 2)) {
+      return safeLegs;
+    }
+  } catch (e) {
+    console.warn('[SafeRoute] Deterministic router failed, falling back to AI:', e.message);
+  }
 
-// If user explicitly wants water-only, return deterministic results (no AI / straight-line fallback).
-if (opts && opts.waterOnly) {
-  return deterministicLegs;
-}
-
-// If deterministic produced at least one waypoint, use it.
-if (Array.isArray(deterministicLegs) && deterministicLegs.some(l => (l.waypoints || []).length >= 1)) {
-  return deterministicLegs;
-}
-
-// 2) AI fallback (can still be used if you prefer; requires CLAUDE_API_KEY)
+  // 2) AI fallback (can still be used if you prefer; requires CLAUDE_API_KEY)
   if (!claudeApiKey) {
     // No AI key: return straight-ish curve fallback
     return (days || []).map(d => ({
@@ -252,5 +249,7 @@ ${JSON.stringify(days.map(d => ({
     return (days || []).map(d => ({ day: d.day, from: d.from, to: d.to, waypoints: [] }));
   }
 }
+
+module.exports
 
 module.exports = { generateTrip, chatWithTrip, generateSafeRoute };

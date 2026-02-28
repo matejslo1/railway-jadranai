@@ -58,5 +58,8 @@
   "vessel_draft_help": "Kako globoko plovilo sega pod vodno linijo.",
   "vessel_air_draft_help": "Najvišja točka nad vodno linijo (npr. vrh jambora).",
   "vessel_speed_help": "Uporablja se za izračun časa in plan etap.",
-  "water_only": "Samo po vodi (izogibaj se kopnemu)"
+  "add_vessel": "+ Dodaj svoje plovilo",
+  "hide_vessel": "Skrij nastavitve plovila",
+  "mooring_warning_shallow": "Pozor: ugrez {{draft}}m, sidrišče ima minimalno globino {{minDepth}}m. Raje izberi marino ali globlje sidrišče.",
+  "mooring_ok": "Ugrez {{draft}}m: sidrišče je glede na minimalno globino videti OK (dodana varnostna rezerva)."
 }

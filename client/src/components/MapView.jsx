@@ -1,5 +1,22 @@
 import { useEffect, useRef } from 'react';
 
+// Normalize coordinates in case backend swaps lat/lng.
+function normalizeCoord(lat, lng) {
+  const a = Number(lat);
+  const b = Number(lng);
+  if (!Number.isFinite(a) || !Number.isFinite(b)) return null;
+  // If clearly swapped for Adriatic (lat ~42-46, lng ~12-19)
+  const looksAdriatic = (x, y) => x >= 41 && x <= 47 && y >= 11 && y <= 20;
+  if (looksAdriatic(a, b)) return [a, b];
+  if (looksAdriatic(b, a)) return [b, a];
+  // If one value out of range, swap
+  if (Math.abs(a) > 90 && Math.abs(b) <= 90) return [b, a];
+  if (Math.abs(b) > 180 && Math.abs(a) <= 180) return [b, a];
+  // Default
+  return [a, b];
+}
+
+
 // ─── Activity config ──────────────────────────────────────────────────────────
 const ACT = {
   marina:     { label: 'Marina',       color: '#1565c0', icon: '⚓' },
@@ -156,7 +173,7 @@ function WindCompass({ windStr }) {
 }
 
 // ─── Main component ───────────────────────────────────────────────────────────
-export default function MapView({ itinerary, activeDay, onDaySelect, safeRoute, debugOverlay = false }) {
+export default function MapView({ itinerary, activeDay, onDaySelect, safeRoute }) {
   const mapRef  = useRef(null);
   const mapInst = useRef(null);
   const layers  = useRef([]);
@@ -191,13 +208,14 @@ export default function MapView({ itinerary, activeDay, onDaySelect, safeRoute, 
     const stops = [];
     days.forEach((d, i) => {
       if (d.fromLat != null && d.fromLng != null) {
-        stops.push({ coord: [+d.fromLat, +d.fromLng], dayIndex: i, day: d });
+        const c = normalizeCoord(d.fromLat, d.fromLng);
+        if (c) stops.push({ coord: c, dayIndex: i, day: d });
       }
     });
 
     const lastDay = days[days.length - 1];
     const finalCoord = lastDay?.toLat != null && lastDay?.toLng != null
-      ? [+lastDay.toLat, +lastDay.toLng] : null;
+      ? normalizeCoord(lastDay.toLat, lastDay.toLng) : null;
 
     const routePoints = [...stops.map(s => s.coord)];
     if (finalCoord) routePoints.push(finalCoord);
@@ -210,14 +228,16 @@ export default function MapView({ itinerary, activeDay, onDaySelect, safeRoute, 
       });
     }
 
-    const debugMap = {};
-    if (Array.isArray(safeRoute)) {
-      safeRoute.forEach(leg => {
-        if (leg.day != null && leg.debug) debugMap[String(leg.day)] = leg.debug;
-      });
+    // ── 3. Background dashed route ─────────────────────────────────────────
+    if (routePoints.length > 1) {
+      layers.current.push(
+        L.polyline(routePoints, {
+          color: 'rgba(59,130,246,0.18)', weight: 2, dashArray: '10 8',
+        }).addTo(map)
+      );
     }
 
-    // ── 3. Per-leg colored segments (safe route only) ──────────────────────── ────────────────────────────────────────
+    // ── 4. Per-leg colored segments ────────────────────────────────────────
     for (let i = 0; i < stops.length; i++) {
       const from = stops[i].coord;
       const to = i < stops.length - 1 ? stops[i + 1].coord : finalCoord;
@@ -227,15 +247,14 @@ export default function MapView({ itinerary, activeDay, onDaySelect, safeRoute, 
       const dayNum = stops[i].day?.day;
       const safeWps = (safeMap[String(dayNum)] || [])
         .filter(w => w.lat != null && w.lng != null)
-        .map(w => [+w.lat, +w.lng]);
+        .map(w => normalizeCoord(w.lat, w.lng)).filter(Boolean);
 
       const hasSafe = safeWps.length > 0;
+      const color = isActive
+        ? (hasSafe ? '#34d399' : '#3b9ece')
+        : (hasSafe ? '#34d39966' : '#3b9ece66');
 
-      // Show ONLY the safe route; if we don't have safe waypoints for this leg, skip drawing it.
-      if (!hasSafe) continue;
-
-      const color = isActive ? '#34d399' : '#34d39966';
-      const legPts = [from, ...safeWps, to];
+      const legPts = hasSafe ? [from, ...safeWps, to] : [from, to];
 
       layers.current.push(
         L.polyline(legPts, {
@@ -274,7 +293,7 @@ export default function MapView({ itinerary, activeDay, onDaySelect, safeRoute, 
     // ── 5. Day markers + sub-markers ───────────────────────────────────────
     days.forEach((d, i) => {
       if (d.fromLat == null || d.fromLng == null) return;
-      const coord = [+d.fromLat, +d.fromLng];
+      const coord = normalizeCoord(d.fromLat, d.fromLng);
       const isActive = i === activeDay;
       const type = detectType(d);
       const a = ACT[type] || ACT.anchorage;
@@ -322,43 +341,8 @@ export default function MapView({ itinerary, activeDay, onDaySelect, safeRoute, 
         }),
         zIndexOffset: 3000,
       }).addTo(map);
-      fm.bindPopup(`<div style="font-family:Arial;font-weight:800;color:#0a1628;font-size:14px">🏁 Cilj: ${lastDay?.to||'Končna destinacija'}</div>`);
+      fm.bindPopup(`<div style="font-family:Arial;font-weight:800;color:white;font-size:14px;background:rgba(10,22,40,0.92);padding:8px 10px;border-radius:10px;border:1px solid rgba(59,158,206,0.25)">🏁 Cilj: ${lastDay?.to||'Končna destinacija'}</div>`);
       layers.current.push(fm);
-    }
-
-
-    // ── 6b. Debug overlay (grid exploration + blocked points + search bbox) ──
-    if (debugOverlay) {
-      const dayNum = days?.[activeDay]?.day ?? (activeDay + 1);
-      const dbg = debugMap[String(dayNum)];
-      if (dbg && dbg.meta && dbg.meta.bbox) {
-        const b = dbg.meta.bbox;
-        const bboxPts = [
-          [b.minLat, b.minLng],
-          [b.minLat, b.maxLng],
-          [b.maxLat, b.maxLng],
-          [b.maxLat, b.minLng],
-          [b.minLat, b.minLng],
-        ];
-        layers.current.push(
-          L.polyline(bboxPts, { color: '#f59e0b', weight: 1.5, opacity: 0.8, dashArray: '4,6' }).addTo(map)
-        );
-
-        const explored = Array.isArray(dbg.explored) ? dbg.explored : [];
-        const blocked = Array.isArray(dbg.blocked) ? dbg.blocked : [];
-
-        explored.forEach(p => {
-          layers.current.push(
-            L.circleMarker(p, { radius: 2, color: '#a855f7', weight: 0, fillColor: '#a855f7', fillOpacity: 0.18 }).addTo(map)
-          );
-        });
-
-        blocked.forEach(p => {
-          layers.current.push(
-            L.circleMarker(p, { radius: 2, color: '#ef4444', weight: 0, fillColor: '#ef4444', fillOpacity: 0.12 }).addTo(map)
-          );
-        });
-      }
     }
 
     // ── 7. Fit bounds ──────────────────────────────────────────────────────
@@ -366,7 +350,7 @@ export default function MapView({ itinerary, activeDay, onDaySelect, safeRoute, 
       map.fitBounds(routePoints, { padding: [60,60], maxZoom: 12 });
     }
 
-  }, [itinerary, activeDay, safeRoute, debugOverlay]);
+  }, [itinerary, activeDay, safeRoute]);
 
   const activeWind = itinerary?.days?.[activeDay]?.weather?.wind || null;
   const hasSafeRoute = Array.isArray(safeRoute) && safeRoute.some(l => (l.waypoints||[]).length > 0);
