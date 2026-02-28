@@ -335,26 +335,22 @@ function graphAStar(startId, goalId) {
 // ─── Build safe leg ───────────────────────────────────────────────────────────
 function buildSafeLeg(from, to) {
   const distKm = haversineKm(from, to);
-  if (distKm < 6) return [];
+  if (distKm < 4) return [];
 
   const startId = nearestNode(from[0], from[1]);
   const goalId  = nearestNode(to[0],   to[1]);
+
+  // If both snap to same node, no waypoints needed
   if (startId === goalId) return [];
 
   const path = graphAStar(startId, goalId);
-  if (!path || path.length < 2) return [];
+  if (!path || path.length < 1) return [];
 
-  // Convert path nodes to waypoints, trim nodes too close to endpoints
-  const result = [];
-  for (let i = 0; i < path.length; i++) {
-    const coord = WP[path[i]];
-    const distFromStart = haversineKm(from, coord);
-    const distFromEnd   = haversineKm(to,   coord);
-    // Skip nodes that are extremely close to the actual from/to points
-    if (distFromStart < 3 && i === 0) continue;
-    if (distFromEnd   < 3 && i === path.length-1) continue;
-    result.push({ lat: coord[0], lng: coord[1] });
-  }
+  // Return ALL graph nodes on the path as waypoints
+  // This ensures every segment goes through known-safe water
+  // We include start and end graph nodes so even the first/last
+  // segments from/to the actual coordinates go via the graph nodes
+  const result = path.map(id => ({ lat: WP[id][0], lng: WP[id][1] }));
   return result;
 }
 
