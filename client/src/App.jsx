@@ -135,6 +135,7 @@ export default function App() {
       const data = await generateTrip(q, i18n.language);
       clearInterval(interval);
       if (data.success && data.itinerary) {
+        console.log('DAY0', JSON.stringify(data.itinerary.days?.[0], null, 2));
         setItinerary(data.itinerary);
         setSafeRoute(null);
         setActiveDay(0); setStreamText(''); setViewTab('itinerary');
