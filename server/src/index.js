@@ -17,6 +17,9 @@ const waitlistRoutes = require('./routes/waitlist');
 const app = express();
 const PORT = process.env.PORT || 3001;
 
+// Railway runs behind a reverse proxy — required for rate limiting and IP detection
+app.set('trust proxy', 1);
+
 // --- Global Middleware ---
 app.use(cors({
   origin: process.env.FRONTEND_URL || '*',

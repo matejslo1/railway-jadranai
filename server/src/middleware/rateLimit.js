@@ -12,6 +12,7 @@ const tripLimiter = rateLimit({
   keyGenerator: (req) => req.headers['x-user-id'] || req.ip,
   standardHeaders: true,
   legacyHeaders: false,
+  validate: { xForwardedForHeader: false },
 });
 
 // General API: 60 requests per minute
@@ -21,6 +22,7 @@ const apiLimiter = rateLimit({
   message: { error: 'Too many requests. Please slow down.' },
   standardHeaders: true,
   legacyHeaders: false,
+  validate: { xForwardedForHeader: false },
 });
 
 module.exports = { tripLimiter, apiLimiter };
