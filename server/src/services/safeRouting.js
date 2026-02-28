@@ -4,8 +4,6 @@ const booleanPointInPolygon = require('@turf/boolean-point-in-polygon').default 
 const bbox = require('@turf/bbox').default || require('@turf/bbox');
 const buffer = require('@turf/buffer').default || require('@turf/buffer');
 const lineIntersect = require('@turf/line-intersect').default || require('@turf/line-intersect');
-const turfDistance = require('@turf/distance').default || require('@turf/distance');
-const turfSimplify = require('@turf/simplify').default || require('@turf/simplify');
 
 // Deterministic water-safe routing (Adriatic MVP)
 // Goal: never draw a segment that crosses land.
@@ -51,7 +49,14 @@ function clampAdriatic(lat, lng) {
 }
 
 function haversineKm(a, b) {
-  return turfDistance(point([a[1], a[0]]), point([b[1], b[0]]), { units: 'kilometers' });
+  const R = 6371;
+  const dLat = (b[0] - a[0]) * Math.PI / 180;
+  const dLng = (b[1] - a[1]) * Math.PI / 180;
+  const sinDLat = Math.sin(dLat / 2);
+  const sinDLng = Math.sin(dLng / 2);
+  const x = sinDLat * sinDLat +
+    Math.cos(a[0] * Math.PI / 180) * Math.cos(b[0] * Math.PI / 180) * sinDLng * sinDLng;
+  return R * 2 * Math.atan2(Math.sqrt(x), Math.sqrt(1 - x));
 }
 
 function key(lat, lng) {
@@ -204,10 +209,30 @@ function aStarWaterRoute(from, to) {
 function simplifyAndSmooth(path) {
   if (!path || path.length < 3) return path;
 
-  // Simplify a bit (avoid huge point count)
-  const line = lineString(path.map(p => [p[1], p[0]]));
-  const simplified = turfSimplify(line, { tolerance: 0.002, highQuality: false });
-  const coords = simplified.geometry.coordinates.map(c => [c[1], c[0]]);
+  // Native Ramer-Douglas-Peucker simplification (no turf needed)
+  function perpendicularDist(pt, lineStart, lineEnd) {
+    const dx = lineEnd[1] - lineStart[1];
+    const dy = lineEnd[0] - lineStart[0];
+    const mag = Math.hypot(dx, dy);
+    if (mag === 0) return Math.hypot(pt[1] - lineStart[1], pt[0] - lineStart[0]);
+    return Math.abs(dx * (lineStart[0] - pt[0]) - dy * (lineStart[1] - pt[1])) / mag;
+  }
+  function rdp(pts, eps) {
+    if (pts.length < 3) return pts;
+    let maxDist = 0, maxIdx = 0;
+    for (let i = 1; i < pts.length - 1; i++) {
+      const d = perpendicularDist(pts[i], pts[0], pts[pts.length - 1]);
+      if (d > maxDist) { maxDist = d; maxIdx = i; }
+    }
+    if (maxDist > eps) {
+      const left = rdp(pts.slice(0, maxIdx + 1), eps);
+      const right = rdp(pts.slice(maxIdx), eps);
+      return [...left.slice(0, -1), ...right];
+    }
+    return [pts[0], pts[pts.length - 1]];
+  }
+
+  const coords = rdp(path, 0.002);
 
   // Ensure no segment crosses land after simplify; if it does, keep original.
   for (let i = 0; i < coords.length - 1; i++) {
