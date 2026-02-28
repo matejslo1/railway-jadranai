@@ -80,20 +80,6 @@ function makePinIcon(L, type, num, isActive) {
   });
 }
 
-function makeSmallPin(L, icon, color) {
-  return L.divIcon({
-    html: `<div style="
-      width:30px;height:30px;background:${color};
-      border:2.5px solid white;border-radius:50%;
-      display:flex;align-items:center;justify-content:center;
-      font-size:15px;box-shadow:0 2px 8px rgba(0,0,0,0.5);
-    ">${icon}</div>`,
-    className: '',
-    iconSize: [30, 30],
-    iconAnchor: [15, 15],
-    popupAnchor: [0, -20],
-  });
-}
 
 // ─── Wind helpers ─────────────────────────────────────────────────────────────
 const DIR_MAP = { N:0,NNE:22,NE:45,ENE:67,E:90,ESE:112,SE:135,SSE:157,S:180,SSW:202,SW:225,WSW:247,W:270,WNW:292,NW:315,NNW:337 };
@@ -326,29 +312,6 @@ export default function MapView({ itinerary, activeDay, onDaySelect, safeRoute }
       m.on('click', () => onDaySelect?.(i));
       layers.current.push(m);
 
-      // Restaurant sub-marker
-      if (restaurant.name) {
-        const rc = [coord[0] + 0.015, coord[1] + 0.022];
-        const rm = L.marker(rc, {
-          icon: makeSmallPin(L, '🍽️', '#166534'),
-          zIndexOffset: i*10+1,
-        }).addTo(map);
-        rm.bindPopup(`<div style="font-family:Arial;font-size:13px"><b style="color:#166534">🍽️ ${restaurant.name}</b>${restaurant.dish?`<br><span style="font-size:11px;color:#555">${restaurant.dish}</span>`:''}${restaurant.price?` <span style="color:#888;font-size:11px">${restaurant.price}</span>`:''}</div>`);
-        layers.current.push(rm);
-      }
-
-      // Highlights sub-markers
-      if (d.highlights?.length) {
-        d.highlights.slice(0, 2).forEach((h, hi) => {
-          const hc = [coord[0] - 0.015, coord[1] + 0.022*(hi+1)];
-          const hm = L.marker(hc, {
-            icon: makeSmallPin(L, '⭐', '#7c3aed'),
-            zIndexOffset: i*10+2+hi,
-          }).addTo(map);
-          hm.bindPopup(`<div style="font-family:Arial;font-size:12px;color:#7c3aed">⭐ ${h}</div>`);
-          layers.current.push(hm);
-        });
-      }
     });
 
     // ── 6. Final destination ───────────────────────────────────────────────
