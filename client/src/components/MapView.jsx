@@ -217,7 +217,17 @@ export default function MapView({ itinerary, activeDay, onDaySelect, safeRoute }
     const finalCoord = lastDay?.toLat != null && lastDay?.toLng != null
       ? normalizeCoord(lastDay.toLat, lastDay.toLng) : null;
 
-    const routePoints = [...stops.map(s => s.coord)];
+    const routePoints = (safeWps && safeWps.length > 1) ? safeWps : (function(){
+    const pts = [];
+    days.forEach((d) => {
+      const c = normalizeCoord(d.fromLat, d.fromLng);
+      if (c) pts.push(c);
+    });
+    const last = days[days.length - 1];
+    const end = last ? normalizeCoord(last.toLat, last.toLng) : null;
+    if (end) pts.push(end);
+    return pts;
+  })();
     if (finalCoord) routePoints.push(finalCoord);
 
     // ── 2. Safe route waypoints ────────────────────────────────────────────

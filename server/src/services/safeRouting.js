@@ -16,7 +16,7 @@ const topojson = require('topojson-client');
 // Prefer 50m; fall back to 110m.
 let land;
 try {
-  const landTopo = require('world-atlas/land-50m.json');
+  const landTopo = require('world-atlas/land-10m.json');
   land = topojson.feature(landTopo, landTopo.objects.land);
 } catch (e) {
   const landTopo = require('world-atlas/land-110m.json');
@@ -25,7 +25,7 @@ try {
 
 // Buffer land a bit so routes don't "scrape" the coastline.
 // 0.2 km works well as a conservative default for plotting.
-const LAND_BUFFER_KM = Number(process.env.LAND_BUFFER_KM || 0.2);
+const LAND_BUFFER_KM = Number(process.env.LAND_BUFFER_KM || 0.3);
 const landBuffered = buffer(land, LAND_BUFFER_KM, { units: 'kilometers' });
 
 function mkPoint(lat, lng) {
