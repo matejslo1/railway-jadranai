@@ -488,7 +488,6 @@ const [error, setError] = useState(null);
               <div style={{ marginTop: 16 }}>
                 <AIChat itinerary={itinerary} language={i18n.language} />
               </div>
-                          </div>
 
 
               {itinerary.packingTips?.length > 0 && (
