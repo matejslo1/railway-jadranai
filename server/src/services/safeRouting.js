@@ -28,12 +28,12 @@ try {
 const LAND_BUFFER_KM = Number(process.env.LAND_BUFFER_KM || 0.2);
 const landBuffered = buffer(land, LAND_BUFFER_KM, { units: 'kilometers' });
 
-function point(lat, lng) {
+function mkPoint(lat, lng) {
   return point([lng, lat]);
 }
 
 function isOnLand(lat, lng) {
-  return booleanPointInPolygon(point(lat, lng), landBuffered);
+  return booleanPointInPolygon(mkPoint(lat, lng), landBuffered);
 }
 
 function crossesLand(a, b) {
