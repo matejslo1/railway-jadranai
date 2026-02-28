@@ -165,7 +165,7 @@ AREAS TO AVOID:
 
 async function generateSafeRoute(days, vesselDraft = 2.0, vesselType = 'sailboat') {
   const system = `You are a professional Adriatic sailing navigator with 30 years of experience. 
-Your task is to generate safe intermediate waypoints between sailing legs, taking into account the vessel characteristics and known hazards.
+Your task is to generate a realistic, curved sailing route with intermediate GPS waypoints for each leg.
 
 You MUST respond ONLY with valid JSON — no markdown, no backticks, no explanation. Pure JSON only.
 
@@ -173,13 +173,16 @@ VESSEL: ${vesselType}, draft ${vesselDraft}m
 
 ${ADRIATIC_SAFE_CHANNELS}
 
-RULES:
-- For each leg, provide 0-3 intermediate waypoints between from and to coordinates
-- Only add waypoints where needed to avoid islands, shoals, or known hazards
-- Stay in well-known channels and passages
-- Keep minimum 0.5nm clearance from coastlines unless entering a marina
-- If the direct route is already safe open water, return empty waypoints array
-- Coordinates must be in Croatian waters (lat: 42.3-45.5, lng: 13.5-18.5)
+CRITICAL RULES:
+- EVERY leg MUST have at least 2 waypoints — even on open water legs
+- Waypoints create a realistic curved sailing route (not straight lines)
+- Route around islands, headlands, and known hazards using the safe channels above
+- For open water legs: add waypoints that follow the natural sailing arc (slightly curved path)
+- For coastal legs: hug the safe side of channels, avoid rocks and shoals
+- Stay minimum 0.5nm from coastlines unless entering a marina
+- All coordinates must be valid Croatian/Adriatic waters (lat: 42.3-45.5, lng: 13.5-18.5)
+- Waypoints must be between the from and to coordinates geographically
+- NEVER return empty waypoints array — minimum 2 waypoints per leg always
 
 Response format — array of legs matching input order:
 [
@@ -188,7 +191,9 @@ Response format — array of legs matching input order:
     "from": "Split",
     "to": "Milna",
     "waypoints": [
-      { "lat": 43.48, "lng": 16.38, "note": "Splitska vrata - main channel" }
+      { "lat": 43.48, "lng": 16.38, "note": "Splitska vrata - main channel north entry" },
+      { "lat": 43.43, "lng": 16.42, "note": "Brač north coast — clear of shoals" },
+      { "lat": 43.33, "lng": 16.45, "note": "Milna bay approach" }
     ]
   }
 ]`;
