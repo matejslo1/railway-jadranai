@@ -1,5 +1,6 @@
 node_modules/
+dist/
 .env
-data/waitlist.json
 *.log
 .DS_Store
+server/data/waitlist.json
