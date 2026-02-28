@@ -61,6 +61,7 @@ export async function getSafeRoute(days, vesselDraft = 2.0, vesselType = 'sailbo
 }
 
 
+export async function joinWaitlist(email, source = 'web') {
   const res = await fetch(`${API_BASE}/api/waitlist`, {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
