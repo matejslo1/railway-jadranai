@@ -5,6 +5,107 @@ const bbox = require('@turf/bbox').default || require('@turf/bbox');
 const buffer = require('@turf/buffer').default || require('@turf/buffer');
 const lineIntersect = require('@turf/line-intersect').default || require('@turf/line-intersect');
 
+const topojson = require('topojson-client');
+const landTopo = require('world-atlas/land-10m.json');
+const { feature } = topojson;
+
+// --- Land geometry cache ---
+let _landBuffered = null;
+function buildLandBuffered() {
+  if (_landBuffered) return _landBuffered;
+  const LAND_BUFFER_KM = Number(process.env.LAND_BUFFER_KM || 0.3);
+  const landFC = feature(landTopo, landTopo.objects.land);
+  const landPoly = landFC.features?.[0] || landFC;
+  _landBuffered = buffer(landPoly, LAND_BUFFER_KM, { units: 'kilometers' });
+  return _landBuffered;
+}
+
+function normalizeCoord(lat, lng) {
+  const a = Number(lat);
+  const b = Number(lng);
+  if (!Number.isFinite(a) || !Number.isFinite(b)) return null;
+  const looksAdriatic = (x, y) => x >= 41 && x <= 47 && y >= 11 && y <= 20;
+  if (looksAdriatic(a, b)) return [a, b];
+  if (looksAdriatic(b, a)) return [b, a];
+  if (Math.abs(a) > 90 && Math.abs(b) <= 90) return [b, a];
+  if (Math.abs(b) > 180 && Math.abs(a) <= 180) return [b, a];
+  return [a, b];
+}
+
+// If a point is on land (marina POI in a village), push it offshore.
+function snapToWater(lat, lng, maxMeters = 1200, stepMeters = 50) {
+  const landBuffered = buildLandBuffered();
+  const c = normalizeCoord(lat, lng);
+  if (!c) return null;
+  const [clat, clng] = c;
+
+  const isLand = (la, lo) => booleanPointInPolygon(point([lo, la]), landBuffered);
+  if (!isLand(clat, clng)) return [clat, clng];
+
+  const metersToDegLat = (m) => m / 111320;
+  const metersToDegLng = (m, atLat) => m / (111320 * (Math.cos((atLat * Math.PI) / 180) || 1));
+
+  for (let r = stepMeters; r <= maxMeters; r += stepMeters) {
+    const dLat = metersToDegLat(r);
+    const dLng = metersToDegLng(r, clat);
+    for (let k = 0; k < 24; k++) {
+      const ang = (2 * Math.PI * k) / 24;
+      const tlat = clat + Math.sin(ang) * dLat;
+      const tlng = clng + Math.cos(ang) * dLng;
+      if (!isLand(tlat, tlng)) return [tlat, tlng];
+    }
+  }
+  return [clat, clng];
+}
+
+async function snapItineraryToWater(itinerary) {
+  try {
+    if (!itinerary || !Array.isArray(itinerary.days)) return itinerary;
+
+    const fixCoord = (lat, lng) => {
+      const c = snapToWater(lat, lng);
+      return c ? { lat: c[0], lng: c[1] } : null;
+    };
+
+    const fixPlace = (p) => {
+      if (!p) return p;
+      const lat = p.lat ?? p.latitude;
+      const lng = p.lng ?? p.lon ?? p.longitude;
+      const c = fixCoord(lat, lng);
+      if (!c) return p;
+      return { ...p, lat: c.lat, lng: c.lng };
+    };
+
+    const days = itinerary.days.map((d) => {
+      const from = fixCoord(d.fromLat, d.fromLng);
+      const to = fixCoord(d.toLat, d.toLng);
+      return {
+        ...d,
+        ...(from ? { fromLat: from.lat, fromLng: from.lng } : {}),
+        ...(to ? { toLat: to.lat, toLng: to.lng } : {}),
+        marina: fixPlace(d.marina),
+        anchorage: fixPlace(d.anchorage),
+        restaurant: fixPlace(d.restaurant),
+        activities: Array.isArray(d.activities) ? d.activities.map((a) => fixPlace(a)) : d.activities,
+      };
+    });
+
+    const safeRoute = itinerary.safeRoute?.waypoints
+      ? {
+          ...itinerary.safeRoute,
+          waypoints: itinerary.safeRoute.waypoints.map((w) => {
+            const c = fixCoord(w.lat, w.lng);
+            return c ? { ...w, lat: c.lat, lng: c.lng } : w;
+          }),
+        }
+      : itinerary.safeRoute;
+
+    return { ...itinerary, days, safeRoute };
+  } catch {
+    return itinerary;
+  }
+}
+
 // Deterministic water-safe routing (Adriatic MVP)
 // Goal: never draw a segment that crosses land.
 // Implementation: A* over a water grid constrained by a buffered landmask.
@@ -260,4 +361,4 @@ function generateSafeRouteLegs(days) {
   });
 }
 
-module.exports = { generateSafeRouteLegs };
+module.exports = { generateSafeRouteLegs, snapItineraryToWater, snapToWater };

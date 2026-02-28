@@ -2,6 +2,7 @@
 const express = require('express');
 const router = express.Router();
 const { generateTrip, chatWithTrip, generateSafeRoute } = require('../services/ai');
+const { snapItineraryToWater } = require('../services/safeRouting');
 const { getCombinedForecast } = require('../services/weather');
 const { tripLimiter } = require('../middleware/rateLimit');
 
@@ -54,7 +55,7 @@ router.post('/generate', tripLimiter, async (req, res) => {
     const snapped = await snapItineraryToWater(itinerary);
 console.log(`[Trip] Generated: "${itinerary.tripTitle}" — ${itinerary.days?.length} days`);
     res.json({
-      success: true, itinerary,
+      success: true, itinerary: (snapped || itinerary),
       meta: { start_location: startName, weather_source: 'open-meteo.com', generated_at: new Date().toISOString(), ai_model: 'claude-sonnet-4', language: lang },
     });
   } catch (err) {
