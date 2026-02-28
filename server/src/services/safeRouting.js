@@ -1,259 +1,373 @@
-const { point, lineString, featureCollection } = require('@turf/helpers');
-const booleanIntersects = require('@turf/boolean-intersects').default || require('@turf/boolean-intersects');
-const booleanPointInPolygon = require('@turf/boolean-point-in-polygon').default || require('@turf/boolean-point-in-polygon');
-const bbox = require('@turf/bbox').default || require('@turf/bbox');
-const buffer = require('@turf/buffer').default || require('@turf/buffer');
-const lineIntersect = require('@turf/line-intersect').default || require('@turf/line-intersect');
+/**
+ * Jadran AI — Safe Routing Service
+ *
+ * Approach: graph of known-safe Adriatic nautical waypoints.
+ * world-atlas land-50m does NOT include Dalmatian islands reliably,
+ * so A* on a raw grid fails. Instead we route through a hand-crafted
+ * graph of waypoints that follow real sailing channels.
+ *
+ * Channels covered:
+ *   - Splitski / Brački kanal
+ *   - Hvarski kanal
+ *   - Korčulanski kanal
+ *   - Pelješki kanal
+ *   - Viški kanal
+ *   - Lastovski kanal
+ *   - Open Adriatic (west of islands)
+ *   - Northern Dalmatia (Šibenik, Zadar)
+ *   - Dubrovnik / Elafiti
+ */
 
-// Deterministic water-safe routing (Adriatic MVP)
-// Goal: never draw a segment that crosses land.
-// Implementation: A* over a water grid constrained by a buffered landmask.
-// NOTE: This is NOT an official nautical router (no ENC/bathymetry), but it reliably avoids coastline/islands.
+// ─── Waypoint definitions [lat, lng] ─────────────────────────────────────────
+const WP = {
+  // Open Adriatic west corridor
+  OA1:  [43.10, 15.80],
+  OA2:  [43.30, 15.90],
+  OA3:  [43.50, 15.80],
+  OA4:  [43.70, 15.70],
+  OA5:  [43.90, 15.60],
+  OA6:  [44.10, 15.50],
+  OA7:  [44.30, 15.40],
+  OA8:  [43.95, 15.30],
+  OA9:  [43.70, 15.40],
 
-const topojson = require('topojson-client');
+  // Vis island
+  VIS_W:   [43.06, 16.00],
+  VIS_N:   [43.10, 16.10],
+  VIS_E:   [43.06, 16.30],
+  VIS_S:   [43.00, 16.15],
+  KOM:     [43.05, 16.08],
 
-// Natural Earth land polygons via world-atlas TopoJSON.
-// Prefer 50m; fall back to 110m.
-let land;
-try {
-  const landTopo = require('world-atlas/land-50m.json');
-  land = topojson.feature(landTopo, landTopo.objects.land);
-} catch (e) {
-  const landTopo = require('world-atlas/land-110m.json');
-  land = topojson.feature(landTopo, landTopo.objects.land);
+  // Viški kanal (Vis - Hvar)
+  VK1:  [43.15, 16.20],
+  VK2:  [43.20, 16.35],
+  VK3:  [43.25, 16.50],
+
+  // Hvar island
+  HVAR_W:  [43.17, 16.38],
+  HVAR_T:  [43.17, 16.44],
+  HVAR_E:  [43.18, 16.65],
+  HVAR_N:  [43.23, 16.50],
+  SUCURAJ: [43.13, 17.19],
+
+  // Hvarski kanal (Hvar - Brač)
+  HK1:  [43.27, 16.50],
+  HK2:  [43.33, 16.65],
+  HK3:  [43.37, 16.80],
+  HK4:  [43.37, 17.00],
+
+  // Brač island
+  BRAC_W:  [43.32, 16.38],
+  BRAC_SW: [43.28, 16.42],
+  BRAC_S:  [43.27, 16.65],
+  BOL:     [43.26, 16.65],
+  BRAC_E:  [43.32, 17.00],
+  BRAC_N:  [43.38, 16.75],
+
+  // Splitski kanal
+  SPK1: [43.44, 16.38],
+  SPK2: [43.46, 16.55],
+  SPK3: [43.48, 16.68],
+  SPK4: [43.50, 16.82],
+
+  // Brački kanal / Šolta
+  BRK1: [43.42, 16.25],
+  BRK2: [43.45, 16.42],
+
+  // Split & Trogir
+  SPLIT:   [43.51, 16.44],
+  SPLIT_S: [43.47, 16.44],
+  TROG:    [43.52, 16.25],
+  TROG_W:  [43.50, 16.18],
+
+  // Šolta
+  SOLTA_N: [43.40, 16.28],
+  SOLTA_S: [43.35, 16.28],
+  ROGAC:   [43.40, 16.30],
+
+  // Makarska riviera
+  BASKA:  [43.36, 16.95],
+  MAK:    [43.30, 17.02],
+  MAK_S:  [43.18, 17.10],
+
+  // Korčula island
+  KOR_W:  [42.97, 16.68],
+  KOR_T:  [42.96, 17.13],
+  KOR_E:  [42.97, 17.35],
+  KOR_N:  [43.03, 17.00],
+  KOR_S:  [42.92, 17.00],
+
+  // Korčulanski kanal (Korčula - Pelješac)
+  KK1: [43.00, 16.80],
+  KK2: [43.02, 17.00],
+  KK3: [43.03, 17.15],
+  KK4: [43.02, 17.30],
+
+  // Pelješac
+  PEL_N1: [43.00, 17.30],
+  PEL_N2: [43.02, 17.50],
+  OREBIC: [42.98, 17.18],
+  TRPANJ: [43.01, 17.27],
+
+  // Pelješki kanal (Pelješac - mainland)
+  PK1: [43.05, 17.30],
+  PK2: [43.07, 17.50],
+  PK3: [43.07, 17.65],
+
+  // Ploče / Neretva
+  PLOCE: [43.05, 17.43],
+  NER1:  [43.02, 17.55],
+  NER2:  [43.00, 17.68],
+
+  // Mljet
+  MLJ_W: [42.78, 17.30],
+  MLJ_N: [42.83, 17.55],
+  MLJ_E: [42.78, 17.75],
+
+  // Lastovo
+  LAST_N: [42.78, 16.88],
+  LAST_S: [42.73, 16.90],
+
+  // Lastovski kanal
+  LK1: [42.88, 16.88],
+  LK2: [42.85, 17.10],
+
+  // Dubrovnik & Elafiti
+  DBK_N:  [42.68, 18.05],
+  DBK:    [42.65, 18.08],
+  DBK_W:  [42.65, 17.90],
+  DBK_S:  [42.58, 18.10],
+  CAVTAT: [42.58, 18.22],
+  ELAF_N: [42.72, 17.95],
+  ELAF_S: [42.65, 17.85],
+  SIPAN:  [42.73, 17.87],
+  LOPUD:  [42.68, 17.93],
+
+  // Šibenik
+  SIB:    [43.74, 15.90],
+  SIB_W:  [43.70, 15.80],
+  SIB_S:  [43.65, 15.90],
+
+  // Zadar
+  ZAD:    [44.12, 15.23],
+  ZAD_S:  [44.00, 15.20],
+  ZAD_W:  [44.10, 15.10],
+  ZAD_CH: [44.05, 15.30],
+  UGL_W:  [44.08, 15.10],
+  UGL_S:  [43.90, 15.20],
+};
+
+// ─── Graph edges (clear water between each pair) ─────────────────────────────
+const EDGES = [
+  // Open Adriatic corridor
+  ['OA1','OA2'],['OA2','OA3'],['OA3','OA4'],['OA4','OA5'],
+  ['OA5','OA6'],['OA6','OA7'],['OA7','ZAD_W'],['OA7','OA8'],
+  ['OA8','OA9'],['OA9','OA3'],['OA9','OA4'],
+  ['OA5','SIB_W'],['OA6','SIB_W'],
+
+  // Vis
+  ['OA1','VIS_S'],['OA1','VIS_W'],['OA2','VIS_N'],['OA2','VIS_W'],
+  ['VIS_W','KOM'],['VIS_W','VIS_N'],['VIS_N','VIS_E'],['VIS_E','VK2'],
+  ['KOM','VIS_W'],['VIS_N','VK1'],['VIS_E','VK3'],
+  ['VIS_S','OA1'],['VIS_S','LAST_N'],
+
+  // Viški kanal
+  ['VK1','VK2'],['VK2','VK3'],['VK3','HVAR_E'],
+  ['VK1','HVAR_W'],['VK2','HVAR_T'],
+
+  // Hvar
+  ['HVAR_W','HVAR_T'],['HVAR_T','HVAR_E'],['HVAR_E','SUCURAJ'],
+  ['HVAR_W','OA3'],['HVAR_N','HK1'],
+  ['HVAR_T','HVAR_N'],['HVAR_E','HK2'],
+
+  // Hvarski kanal
+  ['HK1','HK2'],['HK2','HK3'],['HK3','HK4'],
+  ['HK1','BRAC_S'],['HK2','BOL'],['HK3','BRAC_E'],
+  ['HK1','HVAR_N'],['HK2','HVAR_E'],
+  ['SUCURAJ','HK4'],['HK4','MAK_S'],
+
+  // Brač
+  ['BRAC_W','BRAC_SW'],['BRAC_SW','BRAC_S'],['BRAC_S','BOL'],
+  ['BOL','BRAC_E'],['BRAC_W','BRK1'],['BRAC_SW','SPK1'],
+  ['BRAC_E','HK4'],['BRAC_N','HK3'],['BRAC_N','SPK3'],
+
+  // Splitski kanal
+  ['SPLIT_S','SPK1'],['SPK1','SPK2'],['SPK2','SPK3'],['SPK3','SPK4'],
+  ['SPK1','BRAC_SW'],['SPK2','BRAC_S'],['SPK3','BOL'],
+  ['SPLIT','SPLIT_S'],['SPLIT','SPK2'],
+  ['SPK4','BASKA'],['SPK4','MAK'],
+
+  // Brački kanal / Šolta
+  ['TROG','BRK1'],['BRK1','BRK2'],['BRK2','SOLTA_N'],
+  ['SOLTA_N','ROGAC'],['SOLTA_N','OA4'],['SOLTA_S','OA3'],
+  ['ROGAC','SPLIT'],['BRK1','OA4'],
+
+  // Split / Trogir
+  ['SPLIT','TROG'],['SPLIT','SIB_S'],['SPLIT','BASKA'],
+  ['TROG','TROG_W'],['TROG_W','OA5'],
+
+  // Makarska
+  ['BASKA','MAK'],['MAK','MAK_S'],['MAK_S','HK4'],['MAK','SPLIT'],
+  ['MAK','BRAC_E'],
+
+  // Šibenik
+  ['SIB','SIB_W'],['SIB_W','OA5'],['SIB_W','OA6'],
+  ['SIB','SIB_S'],['SIB_S','TROG'],['SIB_W','ZAD_S'],
+
+  // Zadar
+  ['ZAD','ZAD_S'],['ZAD','ZAD_W'],['ZAD','ZAD_CH'],
+  ['ZAD_W','OA7'],['ZAD_S','SIB_W'],['ZAD_CH','UGL_W'],
+  ['UGL_W','OA7'],['UGL_S','OA6'],
+
+  // Korčula
+  ['KOR_W','KK1'],['KOR_W','OA2'],
+  ['KK1','KK2'],['KK2','KK3'],['KK3','KK4'],
+  ['KK2','KOR_N'],['KK3','KOR_T'],['KK4','KOR_E'],
+  ['KOR_N','KOR_W'],['KOR_T','KOR_E'],
+  ['KOR_S','MLJ_N'],['KOR_S','LAST_N'],
+  ['KOR_W','LK1'],['KOR_E','NER1'],
+  ['KOR_W','HK1'],['KOR_N','HK2'],
+
+  // Pelješac
+  ['KK3','PEL_N1'],['KK4','PEL_N2'],
+  ['PEL_N1','OREBIC'],['OREBIC','KOR_T'],
+  ['PEL_N2','TRPANJ'],['TRPANJ','PEL_N1'],
+  ['PEL_N2','PK1'],['PK1','PLOCE'],['PK2','NER1'],
+  ['PLOCE','PK2'],['PK2','PK3'],['PK3','NER2'],
+
+  // Neretva / Ploče
+  ['PLOCE','NER1'],['NER1','NER2'],['NER2','DBK_W'],
+  ['NER2','PK3'],
+
+  // Mljet
+  ['MLJ_W','MLJ_N'],['MLJ_N','MLJ_E'],
+  ['MLJ_W','KOR_S'],['MLJ_W','LK2'],
+  ['MLJ_N','ELAF_N'],['MLJ_E','DBK_W'],
+  ['MLJ_E','ELAF_S'],
+
+  // Lastovo
+  ['LAST_N','LAST_S'],['LAST_N','LK1'],['LAST_S','OA1'],
+  ['LK1','LK2'],['LK2','MLJ_W'],
+  ['LK1','KOR_S'],
+
+  // Elafiti / Dubrovnik
+  ['ELAF_N','SIPAN'],['SIPAN','LOPUD'],['LOPUD','ELAF_S'],
+  ['ELAF_N','DBK_N'],['ELAF_S','DBK_W'],['ELAF_S','DBK'],
+  ['DBK_N','DBK'],['DBK','DBK_W'],['DBK','DBK_S'],
+  ['DBK_S','CAVTAT'],['DBK_W','NER2'],
+
+  // Open water cross connections
+  ['OA2','KOR_W'],['OA1','LAST_N'],
+  ['OA3','VIS_N'],['OA3','SOLTA_S'],
+  ['OA4','BRAC_W'],['OA5','TROG_W'],
+];
+
+// Build adjacency list
+const GRAPH = {};
+for (const id of Object.keys(WP)) GRAPH[id] = [];
+for (const [a, b] of EDGES) {
+  if (GRAPH[a] && GRAPH[b]) {
+    GRAPH[a].push(b);
+    GRAPH[b].push(a);
+  }
 }
 
-// Buffer land a bit so routes don't "scrape" the coastline.
-// 0.2 km works well as a conservative default for plotting.
-const LAND_BUFFER_KM = Number(process.env.LAND_BUFFER_KM || 0.2);
-const landBuffered = buffer(land, LAND_BUFFER_KM, { units: 'kilometers' });
-
-function mkPoint(lat, lng) {
-  return point([lng, lat]);
-}
-
-function isOnLand(lat, lng) {
-  return booleanPointInPolygon(mkPoint(lat, lng), landBuffered);
-}
-
-function crossesLand(a, b) {
-  const seg = lineString([[a[1], a[0]], [b[1], b[0]]]); // [lng,lat]
-  return booleanIntersects(seg, landBuffered);
-}
-
-function clampAdriatic(lat, lng) {
-  // broad Adriatic bounds (avoid runaway search)
-  const clat = Math.min(46.2, Math.max(41.2, lat));
-  const clng = Math.min(20.0, Math.max(12.0, lng));
-  return [clat, clng];
-}
-
+// ─── Haversine (no external deps) ────────────────────────────────────────────
 function haversineKm(a, b) {
-  return turf.distance(point([a[1], a[0]]), point([b[1], b[0]]), { units: 'kilometers' });
+  const R = 6371;
+  const dLat = (b[0]-a[0]) * Math.PI/180;
+  const dLng = (b[1]-a[1]) * Math.PI/180;
+  const s = Math.sin(dLat/2)**2 +
+    Math.cos(a[0]*Math.PI/180) * Math.cos(b[0]*Math.PI/180) * Math.sin(dLng/2)**2;
+  return R * 2 * Math.atan2(Math.sqrt(s), Math.sqrt(1-s));
 }
 
-function key(lat, lng) {
-  return `${lat.toFixed(5)},${lng.toFixed(5)}`;
-}
-
-function neighbors(lat, lng, dLat, dLng) {
-  // 8-connected grid
-  const res = [];
-  for (const dl of [-1, 0, 1]) {
-    for (const dn of [-1, 0, 1]) {
-      if (dl === 0 && dn === 0) continue;
-      res.push([lat + dl * dLat, lng + dn * dLng]);
-    }
+// ─── Nearest graph node ───────────────────────────────────────────────────────
+function nearestNode(lat, lng) {
+  let best = null, bestDist = Infinity;
+  for (const [id, coord] of Object.entries(WP)) {
+    const d = haversineKm([lat,lng], coord);
+    if (d < bestDist) { bestDist = d; best = id; }
   }
-  return res;
+  return best;
 }
 
-function aStarWaterRoute(from, to) {
-  // Build a limited search window around the leg
-  const distKm = haversineKm(from, to);
+// ─── A* on waypoint graph ─────────────────────────────────────────────────────
+function graphAStar(startId, goalId) {
+  if (startId === goalId) return [startId];
 
-  // grid step: shorter legs = finer grid
-  const stepKm = distKm < 20 ? 0.4 : distKm < 60 ? 0.7 : 1.0;
-  // rough conversion km -> degrees (lat). lng depends on latitude; adjust by cos(lat)
-  const dLat = stepKm / 111.0;
-  const meanLat = (from[0] + to[0]) / 2;
-  const dLng = stepKm / (111.0 * Math.cos((meanLat * Math.PI) / 180) || 1);
-
-  // expand bbox
-  const padLat = Math.max(dLat * 20, 0.08);
-  const padLng = Math.max(dLng * 20, 0.12);
-
-  const minLat = Math.min(from[0], to[0]) - padLat;
-  const maxLat = Math.max(from[0], to[0]) + padLat;
-  const minLng = Math.min(from[1], to[1]) - padLng;
-  const maxLng = Math.max(from[1], to[1]) + padLng;
-
-  // Snap function to grid
-  const snap = (lat, lng) => {
-    const slat = Math.round((lat - minLat) / dLat) * dLat + minLat;
-    const slng = Math.round((lng - minLng) / dLng) * dLng + minLng;
-    return clampAdriatic(slat, slng);
-  };
-
-  const start = snap(from[0], from[1]);
-  const goal = snap(to[0], to[1]);
-
-  // If endpoints are on land due to buffer, nudge them slightly seawards by relaxing buffer for endpoints.
-  // (But usually from/to are ports so they can be close to land.)
-  const startOnLand = isOnLand(start[0], start[1]);
-  const goalOnLand = isOnLand(goal[0], goal[1]);
-  if (startOnLand || goalOnLand) {
-    // Try a few nearby snaps
-    const tryNudge = (p) => {
-      const [lat, lng] = p;
-      for (let r = 1; r <= 6; r++) {
-        for (const nb of neighbors(lat, lng, dLat, dLng)) {
-          const c = clampAdriatic(nb[0], nb[1]);
-          if (!isOnLand(c[0], c[1])) return c;
-        }
-      }
-      return p;
-    };
-    if (startOnLand) {
-      const nudged = tryNudge(start);
-      start[0] = nudged[0];
-      start[1] = nudged[1];
-    }
-    if (goalOnLand) {
-      const nudged = tryNudge(goal);
-      goal[0] = nudged[0];
-      goal[1] = nudged[1];
-    }
-  }
-
-  // A* data
-  const open = new Map(); // key -> f
+  const open = new Map();
   const gScore = new Map();
-  const fScore = new Map();
   const cameFrom = new Map();
 
-  const startK = key(start[0], start[1]);
-  const goalK = key(goal[0], goal[1]);
+  gScore.set(startId, 0);
+  open.set(startId, haversineKm(WP[startId], WP[goalId]));
 
-  gScore.set(startK, 0);
-  fScore.set(startK, haversineKm(start, goal));
-  open.set(startK, fScore.get(startK));
-
-  const maxIterations = Math.min(120000, Math.floor(5000 + distKm * 600));
-  let iter = 0;
-
-  const getLowestOpen = () => {
-    let bestK = null;
-    let bestF = Infinity;
-    for (const [k, f] of open.entries()) {
-      if (f < bestF) {
-        bestF = f;
-        bestK = k;
-      }
-    }
-    return bestK;
+  const getLowest = () => {
+    let best = null, bestF = Infinity;
+    for (const [k,f] of open) if (f < bestF) { bestF = f; best = k; }
+    return best;
   };
 
-  const parseK = (k) => k.split(',').map(Number);
-
-  while (open.size > 0 && iter++ < maxIterations) {
-    const currentK = getLowestOpen();
-    if (!currentK) break;
-    if (currentK === goalK) {
-      // reconstruct
-      const path = [goal];
-      let ck = currentK;
-      while (cameFrom.has(ck)) {
-        ck = cameFrom.get(ck);
-        const [clat, clng] = parseK(ck);
-        path.push([clat, clng]);
-      }
-      path.reverse();
-      return path;
+  let iter = 0;
+  while (open.size > 0 && iter++ < 10000) {
+    const cur = getLowest();
+    if (!cur) break;
+    if (cur === goalId) {
+      const path = [cur];
+      let c = cur;
+      while (cameFrom.has(c)) { c = cameFrom.get(c); path.push(c); }
+      return path.reverse();
     }
-
-    open.delete(currentK);
-    const [clat, clng] = parseK(currentK);
-
-    for (const nbRaw of neighbors(clat, clng, dLat, dLng)) {
-      const nb = clampAdriatic(nbRaw[0], nbRaw[1]);
-      if (nb[0] < minLat || nb[0] > maxLat || nb[1] < minLng || nb[1] > maxLng) continue;
-      if (isOnLand(nb[0], nb[1])) continue;
-      // Prevent edges crossing land too
-      if (crossesLand([clat, clng], nb)) continue;
-
-      const nbK = key(nb[0], nb[1]);
-      const tentativeG = (gScore.get(currentK) ?? Infinity) + haversineKm([clat, clng], nb);
-
-      if (tentativeG < (gScore.get(nbK) ?? Infinity)) {
-        cameFrom.set(nbK, currentK);
-        gScore.set(nbK, tentativeG);
-        const h = haversineKm(nb, goal);
-        const f = tentativeG + h;
-        fScore.set(nbK, f);
-        open.set(nbK, f);
+    open.delete(cur);
+    for (const nb of (GRAPH[cur] || [])) {
+      const g = (gScore.get(cur) ?? Infinity) + haversineKm(WP[cur], WP[nb]);
+      if (g < (gScore.get(nb) ?? Infinity)) {
+        cameFrom.set(nb, cur);
+        gScore.set(nb, g);
+        open.set(nb, g + haversineKm(WP[nb], WP[goalId]));
       }
     }
   }
-
   return null;
 }
 
-function simplifyAndSmooth(path) {
-  if (!path || path.length < 3) return path;
-
-  // Simplify a bit (avoid huge point count)
-  const line = lineString(path.map(p => [p[1], p[0]]));
-  const simplified = turf.simplify(line, { tolerance: 0.002, highQuality: false });
-  const coords = simplified.geometry.coordinates.map(c => [c[1], c[0]]);
-
-  // Ensure no segment crosses land after simplify; if it does, keep original.
-  for (let i = 0; i < coords.length - 1; i++) {
-    if (crossesLand(coords[i], coords[i + 1])) return path;
-  }
-  return coords;
-}
-
+// ─── Build safe leg ───────────────────────────────────────────────────────────
 function buildSafeLeg(from, to) {
-  // If direct is safe, still return a lightly smoothed path (3 points) for nicer visuals
-  if (!crossesLand(from, to) && !isOnLand(from[0], from[1]) && !isOnLand(to[0], to[1])) {
-    const mid = [(from[0] + to[0]) / 2, (from[1] + to[1]) / 2];
-    // tiny offset to avoid perfect straight line
-    const dx = to[1] - from[1];
-    const dy = to[0] - from[0];
-    const len = Math.hypot(dx, dy) || 1;
-    const px = -dy / len;
-    const py = dx / len;
-    const off = 0.01;
-    const mid2 = clampAdriatic(mid[0] + off * py, mid[1] + off * px);
-    return [mid2];
+  const distKm = haversineKm(from, to);
+  if (distKm < 6) return [];
+
+  const startId = nearestNode(from[0], from[1]);
+  const goalId  = nearestNode(to[0],   to[1]);
+  if (startId === goalId) return [];
+
+  const path = graphAStar(startId, goalId);
+  if (!path || path.length < 2) return [];
+
+  // Convert path nodes to waypoints, trim nodes too close to endpoints
+  const result = [];
+  for (let i = 0; i < path.length; i++) {
+    const coord = WP[path[i]];
+    const distFromStart = haversineKm(from, coord);
+    const distFromEnd   = haversineKm(to,   coord);
+    // Skip nodes that are extremely close to the actual from/to points
+    if (distFromStart < 3 && i === 0) continue;
+    if (distFromEnd   < 3 && i === path.length-1) continue;
+    result.push({ lat: coord[0], lng: coord[1] });
   }
-
-  const path = aStarWaterRoute(from, to);
-  if (!path) {
-    // fallback: just add midpoints (better than nothing)
-    return [[(from[0] + to[0]) / 2, (from[1] + to[1]) / 2]];
-  }
-
-  const smooth = simplifyAndSmooth(path);
-
-  // Return waypoints excluding endpoints
-  const inner = smooth.slice(1, -1);
-  // Guarantee at least 1 waypoint
-  if (inner.length === 0) return [[(from[0] + to[0]) / 2, (from[1] + to[1]) / 2]];
-  return inner;
+  return result;
 }
 
+// ─── Main export ──────────────────────────────────────────────────────────────
 function generateSafeRouteLegs(days) {
   return (days || []).map(d => {
     const from = [Number(d.fromLat), Number(d.fromLng)];
-    const to = [Number(d.toLat), Number(d.toLng)];
-    const wpsCoords = buildSafeLeg(from, to);
+    const to   = [Number(d.toLat),   Number(d.toLng)];
 
-    const waypoints = wpsCoords.map((c, idx) => ({
-      lat: Number(c[0].toFixed(5)),
-      lng: Number(c[1].toFixed(5)),
-      note: idx === 0 ? 'safe route' : ''
+    const waypoints = buildSafeLeg(from, to).map((w, idx) => ({
+      lat: Number(w.lat.toFixed(5)),
+      lng: Number(w.lng.toFixed(5)),
+      note: idx === 0 ? 'safe route' : '',
     }));
 
     return { day: d.day, from: d.from, to: d.to, waypoints };
