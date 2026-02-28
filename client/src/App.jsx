@@ -1,6 +1,11 @@
 import { useState, useRef } from 'react';
 import { useTranslation } from 'react-i18next';
 import { generateTrip, joinWaitlist } from './lib/api.js';
+import MapView from './components/MapView.jsx';
+import WindChart from './components/WindChart.jsx';
+import AIChat from './components/AIChat.jsx';
+import SavedTrips from './components/SavedTrips.jsx';
+import PDFExportButton from './components/PDFExport.jsx';
 
 // --- Icons ---
 const Icons = {
@@ -24,17 +29,10 @@ const LANGUAGES = [
   { code: 'de', label: 'DE', name: 'Deutsch' },
 ];
 
-// --- Language Switcher ---
 function LanguageSwitcher() {
   const { i18n } = useTranslation();
   const [open, setOpen] = useState(false);
   const current = LANGUAGES.find(l => l.code === i18n.language) || LANGUAGES[0];
-
-  const select = (code) => {
-    i18n.changeLanguage(code);
-    setOpen(false);
-  };
-
   return (
     <div className="lang-switcher">
       <button className="lang-btn" onClick={() => setOpen(!open)}>
@@ -43,11 +41,8 @@ function LanguageSwitcher() {
       {open && (
         <div className="lang-dropdown">
           {LANGUAGES.map(lang => (
-            <button
-              key={lang.code}
-              className={`lang-option ${lang.code === current.code ? 'active' : ''}`}
-              onClick={() => select(lang.code)}
-            >
+            <button key={lang.code} className={`lang-option ${lang.code === current.code ? 'active' : ''}`}
+              onClick={() => { i18n.changeLanguage(lang.code); setOpen(false); }}>
               {lang.name}
             </button>
           ))}
@@ -57,13 +52,11 @@ function LanguageSwitcher() {
   );
 }
 
-// --- Waitlist Form ---
 function WaitlistForm() {
   const { t } = useTranslation();
   const [email, setEmail] = useState('');
   const [status, setStatus] = useState(null);
   const [message, setMessage] = useState('');
-
   const handleSubmit = async () => {
     if (!email || !email.includes('@')) return;
     setStatus('loading');
@@ -71,17 +64,9 @@ function WaitlistForm() {
       const data = await joinWaitlist(email);
       if (data.success) { setStatus('success'); setMessage(data.message); }
       else { setStatus('error'); setMessage(data.error || 'Something went wrong'); }
-    } catch { setStatus('error'); setMessage('Connection failed. Please try again.'); }
+    } catch { setStatus('error'); setMessage('Connection failed.'); }
   };
-
-  if (status === 'success') {
-    return (
-      <div className="waitlist-success">
-        <Icons.Check /> <span>{message}</span>
-      </div>
-    );
-  }
-
+  if (status === 'success') return <div className="waitlist-success"><Icons.Check /><span>{message}</span></div>;
   return (
     <div className="waitlist-form">
       <div className="waitlist-input-wrap">
@@ -96,57 +81,83 @@ function WaitlistForm() {
   );
 }
 
-// --- Main App ---
+// View mode tabs for results
+function ViewTabs({ active, onChange }) {
+  const tabs = [
+    { id: 'itinerary', label: '📋 Itinerar' },
+    { id: 'map', label: '🗺️ Zemljevid' },
+    { id: 'wind', label: '💨 Veter' },
+  ];
+  return (
+    <div style={{ display: 'flex', gap: 6, marginBottom: 16, background: 'rgba(10,22,40,0.6)', borderRadius: 12, padding: 4 }}>
+      {tabs.map(tab => (
+        <button key={tab.id} onClick={() => onChange(tab.id)} style={{
+          flex: 1,
+          padding: '8px 12px',
+          background: active === tab.id ? 'linear-gradient(135deg, #1a7fb5, #3b9ece)' : 'transparent',
+          border: 'none',
+          borderRadius: 9,
+          color: active === tab.id ? '#fff' : '#5a8da8',
+          fontFamily: 'Outfit, sans-serif',
+          fontSize: 13,
+          fontWeight: active === tab.id ? 700 : 400,
+          cursor: 'pointer',
+          transition: 'all 0.2s',
+        }}>{tab.label}</button>
+      ))}
+    </div>
+  );
+}
+
 export default function App() {
   const { t, i18n } = useTranslation();
   const [query, setQuery] = useState('');
   const [loading, setLoading] = useState(false);
   const [itinerary, setItinerary] = useState(null);
-  const [meta, setMeta] = useState(null);
   const [streamText, setStreamText] = useState('');
   const [activeDay, setActiveDay] = useState(0);
   const [showWelcome, setShowWelcome] = useState(true);
   const [error, setError] = useState(null);
+  const [viewTab, setViewTab] = useState('itinerary');
   const resultRef = useRef(null);
 
   const plan = async (inputQuery) => {
     const q = inputQuery || query;
     if (!q.trim()) return;
-
-    setLoading(true); setShowWelcome(false); setItinerary(null);
-    setMeta(null); setError(null);
-
+    setLoading(true); setShowWelcome(false); setItinerary(null); setError(null);
     const phases = t('loading_phases', { returnObjects: true });
     setStreamText(phases[0]);
     let i = 0;
     const interval = setInterval(() => { i++; if (i < phases.length) setStreamText(phases[i]); }, 2200);
-
     try {
       const data = await generateTrip(q, i18n.language);
       clearInterval(interval);
       if (data.success && data.itinerary) {
-        setItinerary(data.itinerary); setMeta(data.meta);
-        setActiveDay(0); setStreamText('');
+        setItinerary(data.itinerary);
+        setActiveDay(0); setStreamText(''); setViewTab('itinerary');
         setTimeout(() => resultRef.current?.scrollIntoView({ behavior: 'smooth', block: 'start' }), 100);
-      } else {
-        throw new Error(data.error || 'Failed to generate itinerary');
-      }
-    } catch (err) {
-      clearInterval(interval); setError(err.message); setStreamText('');
-    }
+      } else throw new Error(data.error || 'Failed to generate itinerary');
+    } catch (err) { clearInterval(interval); setError(err.message); setStreamText(''); }
     setLoading(false);
   };
 
-  const handleKey = (e) => { if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); plan(); } };
-  const reset = () => { setItinerary(null); setMeta(null); setQuery(''); setError(null); setShowWelcome(true); window.scrollTo({ top: 0, behavior: 'smooth' }); };
+  const loadSavedTrip = (savedItinerary, savedQuery) => {
+    setItinerary(savedItinerary);
+    setQuery(savedQuery || '');
+    setActiveDay(0);
+    setShowWelcome(false);
+    setViewTab('itinerary');
+    setTimeout(() => resultRef.current?.scrollIntoView({ behavior: 'smooth', block: 'start' }), 100);
+  };
 
-  const suggestions = t('loading_phases', { returnObjects: true }) && t('suggestions', { returnObjects: true });
+  const reset = () => { setItinerary(null); setQuery(''); setError(null); setShowWelcome(true); window.scrollTo({ top: 0, behavior: 'smooth' }); };
 
   const day = itinerary?.days?.[activeDay];
-  const weather = day ? (day.weather || {}) : {};
+  const weather = day?.weather || {};
   const marina = day ? (typeof day.marina === 'string' ? { name: day.marina } : day.marina || {}) : {};
   const anchorage = day ? (typeof day.anchorage === 'string' ? { name: day.anchorage } : day.anchorage || {}) : {};
   const restaurant = day ? (typeof day.restaurant === 'string' ? { name: day.restaurant } : day.restaurant || {}) : {};
+  const suggestions = t('suggestions', { returnObjects: true });
 
   return (
     <>
@@ -154,11 +165,8 @@ export default function App() {
         <div className="bg-gradient" />
         <div className="content">
 
-          {/* Header */}
           <header className="header">
-            <div className="header-top">
-              <LanguageSwitcher />
-            </div>
+            <div className="header-top"><LanguageSwitcher /></div>
             <div className="logo-mark">
               <div className="logo-icon"><Icons.Sail /></div>
               <h1 className="title">Jadran AI</h1>
@@ -168,15 +176,23 @@ export default function App() {
               <div className="fade-in">
                 <p className="tagline">{t('tagline')}</p>
                 <div className="badge"><span className="live-dot" /> {t('badge')}</div>
+                <div className="pro-badges">
+                  <span className="pro-badge">🗺️ Interaktivna karta</span>
+                  <span className="pro-badge">💨 Analiza vetra</span>
+                  <span className="pro-badge">🤖 AI asistent</span>
+                  <span className="pro-badge">📄 PDF izvoz</span>
+                  <span className="pro-badge">💾 Shranjene poti</span>
+                </div>
               </div>
             )}
           </header>
 
-          {/* Input */}
           <div className="input-section">
             <div className="input-wrapper">
               <textarea placeholder={t('placeholder')} value={query}
-                onChange={e => setQuery(e.target.value)} onKeyDown={handleKey} rows={2} disabled={loading} />
+                onChange={e => setQuery(e.target.value)}
+                onKeyDown={e => { if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); plan(); } }}
+                rows={2} disabled={loading} />
               <div className="input-footer">
                 <span className="hint">{t('hint')}</span>
                 <button className="send-btn" onClick={() => plan()} disabled={loading || !query.trim()}>
@@ -195,7 +211,6 @@ export default function App() {
             )}
           </div>
 
-          {/* Waitlist */}
           {showWelcome && (
             <div className="waitlist-section fade-in">
               <p className="waitlist-label">{t('waitlist_label')}</p>
@@ -203,7 +218,6 @@ export default function App() {
             </div>
           )}
 
-          {/* Loading */}
           {loading && streamText && (
             <div className="loading fade-in">
               <div className="dots">{[0,1,2].map(i => <div key={i} className="dot" style={{ animationDelay: `${i*0.2}s` }} />)}</div>
@@ -211,7 +225,6 @@ export default function App() {
             </div>
           )}
 
-          {/* Error */}
           {error && (
             <div className="error-box fade-in">
               <p>{error}</p>
@@ -219,11 +232,15 @@ export default function App() {
             </div>
           )}
 
-          {/* Results */}
           {itinerary && (
             <div ref={resultRef} className="fade-in">
+
+              {/* Trip header */}
               <div className="trip-header">
-                <h2 className="trip-title">{itinerary.tripTitle} <span className="live-tag"><span className="live-dot" /> {t('live_weather')}</span></h2>
+                <h2 className="trip-title">
+                  {itinerary.tripTitle}
+                  <span className="live-tag"><span className="live-dot" /> {t('live_weather')}</span>
+                </h2>
                 <p className="trip-summary">{itinerary.summary}</p>
                 <div className="meta-grid">
                   <div className="meta-item"><div className="meta-label">{t('duration')}</div><div className="meta-value">{itinerary.days?.length} {t('days_label')}</div></div>
@@ -242,57 +259,89 @@ export default function App() {
                 <div className="warning-box">{itinerary.warnings.map((w, i) => <div key={i}>⚠️ {w}</div>)}</div>
               )}
 
-              <div className="day-nav">
-                {itinerary.days?.map((d, i) => (
-                  <button key={i} className={`day-tab ${i === activeDay ? 'active' : ''}`} onClick={() => setActiveDay(i)}>{t('day')} {d.day}</button>
-                ))}
+              {/* Action buttons row */}
+              <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 8, marginBottom: 16 }}>
+                <PDFExportButton itinerary={itinerary} />
+                <SavedTrips
+                  currentItinerary={itinerary}
+                  currentQuery={query}
+                  onLoad={loadSavedTrip}
+                />
               </div>
 
-              {day && (
-                <div className="day-card" key={activeDay}>
-                  <h3 className="day-title">{day.title}</h3>
-                  <div className="day-route">
-                    <Icons.Compass /> {day.distance} • {day.sailTime}
-                    {day.departureTime && <span className="dim"> • {t('depart')} {day.departureTime}</span>}
+              {/* View tabs: Itinerary / Map / Wind */}
+              <ViewTabs active={viewTab} onChange={setViewTab} />
+
+              {/* MAP VIEW */}
+              {viewTab === 'map' && (
+                <MapView itinerary={itinerary} activeDay={activeDay} onDaySelect={setActiveDay} />
+              )}
+
+              {/* WIND VIEW */}
+              {viewTab === 'wind' && (
+                <WindChart itinerary={itinerary} activeDay={activeDay} onDaySelect={setActiveDay} />
+              )}
+
+              {/* ITINERARY VIEW */}
+              {viewTab === 'itinerary' && (
+                <>
+                  <div className="day-nav">
+                    {itinerary.days?.map((d, i) => (
+                      <button key={i} className={`day-tab ${i === activeDay ? 'active' : ''}`} onClick={() => setActiveDay(i)}>
+                        {t('day')} {d.day}
+                      </button>
+                    ))}
                   </div>
 
-                  <div className="info-grid">
-                    <div className="info-card">
-                      <div className="info-card-title"><Icons.Sun /> {t('weather')}</div>
-                      <div className="info-card-value">
-                        {weather.condition} • {weather.temp}°C<br/>
-                        <span className="wind-row"><Icons.Wind /> {weather.wind}</span><br/>
-                        <span className="dim">{t('waves')}: {weather.waves}</span>
-                        {weather.safety && <><br/><span className="dim">{weather.safety}</span></>}
+                  {day && (
+                    <div className="day-card" key={activeDay}>
+                      <h3 className="day-title">{day.title}</h3>
+                      <div className="day-route">
+                        <Icons.Compass /> {day.distance} • {day.sailTime}
+                        {day.departureTime && <span className="dim"> • {t('depart')} {day.departureTime}</span>}
                       </div>
-                    </div>
-                    <div className="info-card">
-                      <div className="info-card-title"><Icons.Anchor /> {t('berth')}</div>
-                      <div className="info-card-value">
-                        {marina.name && <div>⚓ {marina.name}{marina.price ? ` (${marina.price})` : ''}</div>}
-                        {anchorage.name && <div style={{ marginTop: marina.name ? 6 : 0 }}>🏖️ {anchorage.name}{anchorage.notes ? <><br/><span className="dim">{anchorage.notes}</span></> : ''}</div>}
+                      <div className="info-grid">
+                        <div className="info-card">
+                          <div className="info-card-title"><Icons.Sun /> {t('weather')}</div>
+                          <div className="info-card-value">
+                            {weather.condition} • {weather.temp}°C<br/>
+                            <span className="wind-row"><Icons.Wind /> {weather.wind}</span><br/>
+                            <span className="dim">{t('waves')}: {weather.waves}</span>
+                            {weather.safety && <><br/><span className="dim">{weather.safety}</span></>}
+                          </div>
+                        </div>
+                        <div className="info-card">
+                          <div className="info-card-title"><Icons.Anchor /> {t('berth')}</div>
+                          <div className="info-card-value">
+                            {marina.name && <div>⚓ {marina.name}{marina.price ? ` (${marina.price})` : ''}</div>}
+                            {anchorage.name && <div style={{ marginTop: marina.name ? 6 : 0 }}>🏖️ {anchorage.name}{anchorage.notes ? <><br/><span className="dim">{anchorage.notes}</span></> : ''}</div>}
+                          </div>
+                        </div>
+                        <div className="info-card">
+                          <div className="info-card-title">🍽️ {t('dinner')}</div>
+                          <div className="info-card-value">
+                            {restaurant.name || t('ask_locals')}
+                            {restaurant.dish && <><br/><span className="dim">{t('try_dish')}: {restaurant.dish}</span></>}
+                            {restaurant.price && <span className="dim" style={{ marginLeft: 6 }}>{restaurant.price}</span>}
+                          </div>
+                        </div>
                       </div>
-                    </div>
-                    <div className="info-card">
-                      <div className="info-card-title">🍽️ {t('dinner')}</div>
-                      <div className="info-card-value">
-                        {restaurant.name || t('ask_locals')}
-                        {restaurant.dish && <><br/><span className="dim">{t('try_dish')}: {restaurant.dish}</span></>}
-                        {restaurant.price && <span className="dim" style={{ marginLeft: 6 }}>{restaurant.price}</span>}
-                      </div>
-                    </div>
-                  </div>
-
-                  {day.highlights?.length > 0 && (
-                    <div className="highlights">
-                      <div className="section-label">{t('highlights')}</div>
-                      <div className="chip-list">{day.highlights.map((h, i) => <span key={i} className="highlight-chip">{h}</span>)}</div>
+                      {day.highlights?.length > 0 && (
+                        <div className="highlights">
+                          <div className="section-label">{t('highlights')}</div>
+                          <div className="chip-list">{day.highlights.map((h, i) => <span key={i} className="highlight-chip">{h}</span>)}</div>
+                        </div>
+                      )}
+                      {day.tip && <div className="tip-box"><strong>⚓ {t('captains_tip')}:</strong> {day.tip}</div>}
                     </div>
                   )}
-
-                  {day.tip && <div className="tip-box"><strong>⚓ {t('captains_tip')}:</strong> {day.tip}</div>}
-                </div>
+                </>
               )}
+
+              {/* AI Chat - always visible below tabs */}
+              <div style={{ marginTop: 16 }}>
+                <AIChat itinerary={itinerary} language={i18n.language} />
+              </div>
 
               {itinerary.packingTips?.length > 0 && (
                 <div className="trip-header" style={{ marginTop: 16 }}>
@@ -306,6 +355,13 @@ export default function App() {
               <div style={{ textAlign: 'center' }}>
                 <button className="new-trip-btn" onClick={reset}>{t('new_trip_btn')}</button>
               </div>
+            </div>
+          )}
+
+          {/* Saved trips accessible from welcome screen too */}
+          {!itinerary && !loading && (
+            <div style={{ marginTop: 8 }}>
+              <SavedTrips onLoad={loadSavedTrip} />
             </div>
           )}
 

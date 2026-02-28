@@ -1,11 +1,10 @@
-// Trip generation routes
+// Trip generation + chat routes
 const express = require('express');
 const router = express.Router();
-const { generateTrip } = require('../services/ai');
+const { generateTrip, chatWithTrip } = require('../services/ai');
 const { getCombinedForecast } = require('../services/weather');
 const { tripLimiter } = require('../middleware/rateLimit');
 
-// Known starting locations with coordinates
 const START_LOCATIONS = {
   'split': { lat: 43.5081, lng: 16.4402 },
   'dubrovnik': { lat: 42.6507, lng: 18.0944 },
@@ -25,13 +24,11 @@ const START_LOCATIONS = {
 
 const SUPPORTED_LANGUAGES = ['en', 'sl', 'hr', 'it', 'de'];
 
-// Detect starting location from query text
 function detectStartLocation(query) {
   const lower = query.toLowerCase();
   for (const [name, coords] of Object.entries(START_LOCATIONS)) {
     if (lower.includes(name)) return { name, ...coords };
   }
-  // Default to Split (most popular charter base)
   return { name: 'split', ...START_LOCATIONS.split };
 }
 
@@ -39,56 +36,45 @@ function detectStartLocation(query) {
 router.post('/generate', tripLimiter, async (req, res) => {
   try {
     const { query, startLat, startLng, language } = req.body;
-
     if (!query || query.trim().length < 10) {
-      return res.status(400).json({
-        error: 'Please describe your trip in more detail (at least 10 characters).',
-      });
+      return res.status(400).json({ error: 'Please describe your trip in more detail (at least 10 characters).' });
     }
-
-    // Validate and sanitize language
     const lang = SUPPORTED_LANGUAGES.includes(language) ? language : 'en';
-
-    // Determine starting coordinates
     let lat, lng, startName;
     if (startLat && startLng) {
-      lat = parseFloat(startLat);
-      lng = parseFloat(startLng);
-      startName = 'custom';
+      lat = parseFloat(startLat); lng = parseFloat(startLng); startName = 'custom';
     } else {
       const detected = detectStartLocation(query);
-      lat = detected.lat;
-      lng = detected.lng;
-      startName = detected.name;
+      lat = detected.lat; lng = detected.lng; startName = detected.name;
     }
-
-    console.log(`[Trip] Generating for: "${query.substring(0, 80)}..." from ${startName} (${lat}, ${lng}) lang=${lang}`);
-
-    // Fetch real weather data
+    console.log(`[Trip] "${query.substring(0, 80)}" from ${startName} lang=${lang}`);
     const weather = await getCombinedForecast(lat, lng, 7);
-
-    // Generate AI itinerary with language
     const itinerary = await generateTrip(query, weather, startName, lang);
-
-    console.log(`[Trip] Generated: "${itinerary.tripTitle}" — ${itinerary.days?.length} days, ${itinerary.totalDistance}`);
-
+    console.log(`[Trip] Generated: "${itinerary.tripTitle}" — ${itinerary.days?.length} days`);
     res.json({
-      success: true,
-      itinerary,
-      meta: {
-        start_location: startName,
-        weather_source: 'open-meteo.com',
-        generated_at: new Date().toISOString(),
-        ai_model: 'claude-sonnet-4',
-        language: lang,
-      },
+      success: true, itinerary,
+      meta: { start_location: startName, weather_source: 'open-meteo.com', generated_at: new Date().toISOString(), ai_model: 'claude-sonnet-4', language: lang },
     });
   } catch (err) {
-    console.error('[Trip] Generation error:', err.message);
-    res.status(500).json({
-      error: 'Failed to generate your trip. Please try again.',
-      details: process.env.NODE_ENV === 'development' ? err.message : undefined,
-    });
+    console.error('[Trip] Error:', err.message);
+    res.status(500).json({ error: 'Failed to generate your trip. Please try again.', details: process.env.NODE_ENV === 'development' ? err.message : undefined });
+  }
+});
+
+// POST /api/trips/chat
+router.post('/chat', tripLimiter, async (req, res) => {
+  try {
+    const { message, itinerary, language } = req.body;
+    if (!message || !itinerary) {
+      return res.status(400).json({ error: 'message and itinerary are required' });
+    }
+    const lang = SUPPORTED_LANGUAGES.includes(language) ? language : 'en';
+    console.log(`[Chat] "${message.substring(0, 60)}" lang=${lang}`);
+    const reply = await chatWithTrip(message, itinerary, lang);
+    res.json({ success: true, reply });
+  } catch (err) {
+    console.error('[Chat] Error:', err.message);
+    res.status(500).json({ error: 'Chat failed. Please try again.' });
   }
 });
 

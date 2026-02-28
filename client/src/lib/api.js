@@ -16,6 +16,20 @@ export async function generateTrip(query, language = 'en') {
   return res.json();
 }
 
+export async function chatWithTrip(message, itinerary, language = 'en') {
+  const res = await fetch(`${API_BASE}/api/trips/chat`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ message, itinerary, language }),
+  });
+  if (!res.ok) {
+    const err = await res.json().catch(() => ({}));
+    throw new Error(err.error || `Server error: ${res.status}`);
+  }
+  const data = await res.json();
+  return data.reply;
+}
+
 export async function getWeather(lat, lng, days = 7) {
   const res = await fetch(`${API_BASE}/api/weather?lat=${lat}&lng=${lng}&days=${days}`);
   if (!res.ok) throw new Error('Failed to fetch weather');
