@@ -316,6 +316,7 @@ const [error, setError] = useState(null);
                       {t('water_only', { defaultValue: 'Samo po vodi (water-only)' })}
                     </label>
                   </div>
+                </div>
 
                 {safeRouteError && (
                   <div className="safe-route-msg">
