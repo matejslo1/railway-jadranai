@@ -15,17 +15,22 @@ const placesRoutes = require('./routes/places');
 const waitlistRoutes = require('./routes/waitlist');
 
 const app = express();
+
+const corsOptions = {
+  origin: process.env.FRONTEND_URL || '*',
+  methods: ['GET', 'POST', 'OPTIONS'],
+  allowedHeaders: ['Content-Type', 'x-user-id', 'Authorization'],
+};
+
 const PORT = process.env.PORT || 3001;
 
 // Railway runs behind a reverse proxy — required for rate limiting and IP detection
 app.set('trust proxy', 1);
 
 // --- Global Middleware ---
-app.use(cors({
-  origin: process.env.FRONTEND_URL || '*',
-  methods: ['GET', 'POST'],
-  allowedHeaders: ['Content-Type', 'x-user-id', 'Authorization'],
-}));
+app.use(cors(corsOptions));
+// Respond to CORS preflight requests (important for Vercel -> Railway)
+app.options('*', cors(corsOptions));
 app.use(express.json({ limit: '1mb' }));
 app.use('/api', apiLimiter);
 
