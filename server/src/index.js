@@ -17,7 +17,7 @@ const waitlistRoutes = require('./routes/waitlist');
 const app = express();
 
 const corsOptions = {
-  origin: process.env.FRONTEND_URL || '*',
+  origin: '*',
   methods: ['GET', 'POST', 'OPTIONS'],
   allowedHeaders: ['Content-Type', 'x-user-id', 'Authorization'],
 };
