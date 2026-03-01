@@ -1,0 +1,13 @@
+node_modules/
+dist/
+.env
+*.log
+.DS_Store
+server/data/waitlist.json
+
+# Client/Server env files
+client/.env
+server/.env
+
+# Archives
+*.zip
