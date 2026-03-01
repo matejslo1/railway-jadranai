@@ -112,19 +112,43 @@ export default function MapView({ itinerary, activeDay, showDebug, showSafeRoute
   // Places for the active day (marinas/anchorages/restaurants/activities)
   const places = useMemo(() => {
     const list = [];
-    const add = (p, kind) => {
+    const add = (p, kind, indexOffset = 0) => {
       if (!p) return;
-      const lat = p.lat ?? p.latitude ?? p.fromLat ?? p.toLat;
-      const lng = p.lng ?? p.lon ?? p.longitude ?? p.fromLng ?? p.toLng;
+      let lat = p.lat ?? p.latitude ?? p.fromLat ?? p.toLat;
+      let lng = p.lng ?? p.lon ?? p.longitude ?? p.fromLng ?? p.toLng;
+
+      // Fallback relative to the day's destination if latitude/longitude are completely missing
+      if (lat == null || lng == null) {
+        if (day.toLat != null && day.toLng != null) {
+          lat = day.toLat + (Math.sin(indexOffset * 2) * 0.003);
+          lng = day.toLng + (Math.cos(indexOffset * 2) * 0.003);
+        } else if (day.fromLat != null && day.fromLng != null) {
+          lat = day.fromLat + (Math.sin(indexOffset * 2) * 0.003);
+          lng = day.fromLng + (Math.cos(indexOffset * 2) * 0.003);
+        } else {
+          return;
+        }
+      }
+
       const c = snapToWater(lat, lng, landPoly);
       if (!c) return;
-      list.push({ coord: c, kind, name: p.name || p.title || kind, raw: p });
+
+      // Smart classification based on text (for SI & EN)
+      let specificKind = kind;
+      const text = `${p.name || ''} ${p.type || ''} ${p.description || ''} ${p.notes || ''}`.toLowerCase();
+      if (text.includes('boj') || text.includes('buoy') || text.includes('privezišč')) specificKind = 'buoy';
+      else if (text.includes('plaž') || text.includes('plaz') || text.includes('beach')) specificKind = 'beach';
+      else if (text.includes('potaplj') || text.includes('dive') || text.includes('diving') || text.includes('potaplja')) specificKind = 'diving';
+      else if (text.includes('rib') || text.includes('fish') || text.includes('ribolov')) specificKind = 'fishing';
+      else if (text.includes('narav') || text.includes('nature') || text.includes('park')) specificKind = 'nature';
+
+      list.push({ coord: c, kind: specificKind, name: p.name || p.title || specificKind, raw: p });
     };
     if (!day) return list;
-    add(day.marina, 'marina');
-    add(day.anchorage, 'anchorage');
-    add(day.restaurant, 'restaurant');
-    (day.activities || []).forEach(a => add(a, 'activity'));
+    add(day.marina, 'marina', 1);
+    add(day.anchorage, 'anchorage', 2);
+    add(day.restaurant, 'restaurant', 3);
+    (day.activities || []).forEach((a, index) => add(a, 'activity', 4 + index));
     return list;
   }, [day, landPoly]);
 
@@ -183,10 +207,15 @@ export default function MapView({ itinerary, activeDay, showDebug, showSafeRoute
       });
 
     const icons = {
-      marina: makeIcon('⚓'),
-      anchorage: makeIcon('🏖️'),
-      restaurant: makeIcon('🍽️'),
-      activity: makeIcon('⭐'),
+      marina: makeIcon('🛥️'),      // Marina
+      anchorage: makeIcon('⚓'),   // Sidrišče
+      buoy: makeIcon('🛟'),       // Boja
+      beach: makeIcon('🏖️'),      // Plaža
+      diving: makeIcon('🤿'),     // Potapljanje
+      fishing: makeIcon('🎣'),    // Lovljenje rib
+      nature: makeIcon('🌲'),     // Narava / poti
+      restaurant: makeIcon('🍽️'), // Restavracija
+      activity: makeIcon('📍'),   // Splošna aktivnost
     };
 
     // Route polylines
