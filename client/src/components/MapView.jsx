@@ -1,8 +1,12 @@
 import { useEffect, useMemo, useRef } from 'react';
 import L from 'leaflet';
 import 'leaflet/dist/leaflet.css';
+import { feature } from 'topojson-client';
+import landTopo from 'world-atlas/land-10m.json';
+import { point as turfPoint } from '@turf/helpers';
+import booleanPointInPolygon from '@turf/boolean-point-in-polygon';
 
-// Robust coordinate normalization (handles swapped lat/lng)
+// --- Coordinate utilities ---
 function normalizeCoord(lat, lng) {
   const a = Number(lat);
   const b = Number(lng);
@@ -18,52 +22,101 @@ function normalizeCoord(lat, lng) {
   return [a, b];
 }
 
+function metersToDegLat(m) {
+  return m / 111320;
+}
+function metersToDegLng(m, atLat) {
+  const c = Math.cos((atLat * Math.PI) / 180) || 1;
+  return m / (111320 * c);
+}
+
+// If a point is on land, push it offshore a bit (client-side visual fix).
+function snapToWater(lat, lng, landPoly, maxMeters = 1200, stepMeters = 50) {
+  const c = normalizeCoord(lat, lng);
+  if (!c) return null;
+  const [clat, clng] = c;
+
+  const isLand = (la, lo) => {
+    try {
+      return booleanPointInPolygon(turfPoint([lo, la]), landPoly);
+    } catch {
+      return false;
+    }
+  };
+
+  if (!landPoly || !isLand(clat, clng)) return [clat, clng];
+
+  for (let r = stepMeters; r <= maxMeters; r += stepMeters) {
+    const dLat = metersToDegLat(r);
+    const dLng = metersToDegLng(r, clat);
+    for (let k = 0; k < 24; k++) {
+      const ang = (2 * Math.PI * k) / 24;
+      const tlat = clat + Math.sin(ang) * dLat;
+      const tlng = clng + Math.cos(ang) * dLng;
+      if (!isLand(tlat, tlng)) return [tlat, tlng];
+    }
+  }
+  return [clat, clng];
+}
+
 export default function MapView({ itinerary, activeDay, showDebug, showSafeRoute, showRoute }) {
   const mapRef = useRef(null);
   const layersRef = useRef({});
 
+  // Build land polygon once (GeoJSON FeatureCollection -> MultiPolygon/Polygon)
+  const landPoly = useMemo(() => {
+    try {
+      const fc = feature(landTopo, landTopo.objects.land);
+      // booleanPointInPolygon accepts Feature<Polygon|MultiPolygon>
+      // landTopo is a FeatureCollection with 1 feature
+      return fc.features?.[0] || fc;
+    } catch {
+      return null;
+    }
+  }, []);
+
   const days = itinerary?.days || [];
   const day = days[activeDay] || null;
 
-  // Prefer backend-provided safe route
+  // Prefer safeRoute from backend for polylines
   const safeWpsRaw = itinerary?.safeRoute?.waypoints || day?.safeRoute?.waypoints || [];
-  const safeWps = (safeWpsRaw || []).map(w => normalizeCoord(w.lat, w.lng)).filter(Boolean);
+  const safeWps = (safeWpsRaw || []).map(w => snapToWater(w.lat, w.lng, landPoly)).filter(Boolean);
 
-  // Fallback route points ONLY if no safe route
+  // Build fallback route points only if safe route is missing
   const routePoints = useMemo(() => {
     if (safeWps.length > 1) return safeWps;
     const pts = [];
     days.forEach((d) => {
-      const c = normalizeCoord(d.fromLat, d.fromLng);
+      const c = snapToWater(d.fromLat, d.fromLng, landPoly);
       if (c) pts.push(c);
     });
     const last = days[days.length - 1];
-    const end = last ? normalizeCoord(last.toLat, last.toLng) : null;
+    const end = last ? snapToWater(last.toLat, last.toLng, landPoly) : null;
     if (end) pts.push(end);
     return pts;
-  }, [days, safeWps]);
+  }, [days, landPoly, safeWps]);
 
-  // Stops (day starts + finish)
+  // Stops (markers) for each day start + final destination
   const stops = useMemo(() => {
     const out = [];
     days.forEach((d, i) => {
-      const c = normalizeCoord(d.fromLat, d.fromLng);
+      const c = snapToWater(d.fromLat, d.fromLng, landPoly);
       if (c) out.push({ coord: c, dayIndex: i, label: d.from || `Dan ${i + 1}` });
     });
     const last = days[days.length - 1];
-    const fc = last ? normalizeCoord(last.toLat, last.toLng) : null;
+    const fc = last ? snapToWater(last.toLat, last.toLng, landPoly) : null;
     if (fc) out.push({ coord: fc, dayIndex: days.length - 1, label: `🏁 ${last?.to || 'Cilj'}`, isFinish: true });
     return out;
-  }, [days]);
+  }, [days, landPoly]);
 
-  // Places for active day - expect backend already snapped to water where possible
+  // Places for the active day (marinas/anchorages/restaurants/activities)
   const places = useMemo(() => {
     const list = [];
     const add = (p, kind) => {
       if (!p) return;
-      const lat = p.lat ?? p.latitude;
-      const lng = p.lng ?? p.lon ?? p.longitude;
-      const c = normalizeCoord(lat, lng);
+      const lat = p.lat ?? p.latitude ?? p.fromLat ?? p.toLat;
+      const lng = p.lng ?? p.lon ?? p.longitude ?? p.fromLng ?? p.toLng;
+      const c = snapToWater(lat, lng, landPoly);
       if (!c) return;
       list.push({ coord: c, kind, name: p.name || p.title || kind, raw: p });
     };
@@ -73,50 +126,54 @@ export default function MapView({ itinerary, activeDay, showDebug, showSafeRoute
     add(day.restaurant, 'restaurant');
     (day.activities || []).forEach(a => add(a, 'activity'));
     return list;
-  }, [day]);
+  }, [day, landPoly]);
 
-  // Init map
+  // Initialize map
   useEffect(() => {
     if (mapRef.current) return;
+
     const el = document.getElementById('map');
     if (!el) return;
 
     const map = L.map(el, { zoomControl: false, preferCanvas: true });
     mapRef.current = map;
+
     L.control.zoom({ position: 'topleft' }).addTo(map);
 
     const osm = L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
       maxZoom: 18,
-      attribution: '&copy; OpenStreetMap',
+      attribution: '&copy; OpenStreetMap'
     });
 
     const seamarks = L.tileLayer('https://tiles.openseamap.org/seamark/{z}/{x}/{y}.png', {
       maxZoom: 18,
       opacity: 0.75,
-      attribution: 'OpenSeaMap',
+      attribution: 'OpenSeaMap'
     });
 
     osm.addTo(map);
     seamarks.addTo(map);
+
     layersRef.current.base = osm;
     layersRef.current.seamarks = seamarks;
 
+    // Default view (Adriatic)
     map.setView([44.0, 15.0], 7);
   }, []);
 
-  // Render overlays
+  // Render layers (markers + lines)
   useEffect(() => {
     const map = mapRef.current;
     if (!map) return;
 
-    // Clear previous layers (except base/seamarks)
+    // Clear old layers
     Object.values(layersRef.current)
-      .filter((l) => l && l instanceof L.Layer && l !== layersRef.current.base && l !== layersRef.current.seamarks)
-      .forEach((l) => {
+      .filter(l => l && l instanceof L.Layer && l !== layersRef.current.base && l !== layersRef.current.seamarks)
+      .forEach(l => {
         try { map.removeLayer(l); } catch {}
       });
 
-    // Icons
+    // Marker icons
     const makeIcon = (emoji) =>
       L.divIcon({
         className: 'poi-marker',
@@ -132,62 +189,64 @@ export default function MapView({ itinerary, activeDay, showDebug, showSafeRoute
       activity: makeIcon('⭐'),
     };
 
-    // Lines
+    // Route polylines
     if (showSafeRoute && safeWps.length > 1) {
-      const safeLine = L.polyline(safeWps, { weight: 5, opacity: 0.9, className: 'poly-safe' }).addTo(map);
+      const safeLine = L.polyline(safeWps, { weight: 5, opacity: 0.9, className: 'poly-safe' });
+      safeLine.addTo(map);
       layersRef.current.safeLine = safeLine;
     }
 
     if (showRoute && routePoints.length > 1 && safeWps.length <= 1) {
-      const routeLine = L.polyline(routePoints, { weight: 3, opacity: 0.55, dashArray: '6 10', className: 'poly-route' }).addTo(map);
+      const routeLine = L.polyline(routePoints, { weight: 3, opacity: 0.55, dashArray: '6 10', className: 'poly-route' });
+      routeLine.addTo(map);
       layersRef.current.routeLine = routeLine;
     }
 
-    // Stop markers
-    const stopMarkers = stops.map((s) => {
+    // Stop markers (day starts + finish)
+    const stopMarkers = [];
+    stops.forEach((s) => {
       const marker = L.circleMarker(s.coord, {
         radius: s.isFinish ? 9 : 7,
         weight: 3,
         opacity: 1,
         fillOpacity: 0.9,
-        className: s.isFinish ? 'stop-finish' : 'stop-marker',
+        className: s.isFinish ? 'stop-finish' : 'stop-marker'
       }).addTo(map);
 
       marker.bindPopup(
         `<div style="font-family:Arial;font-weight:800;color:white;font-size:14px;background:rgba(10,22,40,0.92);padding:8px 10px;border-radius:10px;border:1px solid rgba(59,158,206,0.25)">${s.label}</div>`
       );
-      return marker;
+
+      stopMarkers.push(marker);
     });
     layersRef.current.stopMarkers = L.layerGroup(stopMarkers).addTo(map);
 
-    // POIs
-    const poiMarkers = places.map((p) => {
+    // POI markers
+    const poiMarkers = [];
+    places.forEach((p) => {
       const marker = L.marker(p.coord, { icon: icons[p.kind] || icons.activity }).addTo(map);
       const title = p.name ? `<b>${p.name}</b>` : '';
       const desc = p.raw?.description ? `<div style="margin-top:6px;opacity:.9">${p.raw.description}</div>` : '';
       marker.bindPopup(`<div style="min-width:220px">${title}${desc}</div>`);
-      return marker;
+      poiMarkers.push(marker);
     });
     layersRef.current.poiMarkers = L.layerGroup(poiMarkers).addTo(map);
 
     // Fit bounds
-    const boundsPts = (safeWps.length > 1 ? safeWps : routePoints)
-      .concat(stops.map((s) => s.coord))
-      .concat(places.map((p) => p.coord));
-
+    const boundsPts = (safeWps.length > 1 ? safeWps : routePoints).concat(stops.map(s => s.coord)).concat(places.map(p => p.coord));
     if (boundsPts.length > 1) {
-      map.fitBounds(L.latLngBounds(boundsPts).pad(0.2));
+      const b = L.latLngBounds(boundsPts);
+      map.fitBounds(b.pad(0.2));
     } else if (boundsPts.length === 1) {
       map.setView(boundsPts[0], 12);
     }
 
-    if (showDebug) {
-      // minimal debug: show point count
-      // (no landmask on client to keep bundle small)
-      // eslint-disable-next-line no-console
-      console.log('Map debug:', { safeWps: safeWps.length, routePoints: routePoints.length, stops: stops.length, places: places.length });
+    // Debug: show land polygon outline
+    if (showDebug && landPoly) {
+      const landLayer = L.geoJSON(landPoly, { style: { weight: 1, opacity: 0.5 } }).addTo(map);
+      layersRef.current.landLayer = landLayer;
     }
-  }, [activeDay, places, routePoints, safeWps, showDebug, showRoute, showSafeRoute, stops]);
+  }, [activeDay, itinerary, landPoly, places, routePoints, safeWps, showDebug, showRoute, showSafeRoute, stops]);
 
   return <div id="map" style={{ width: '100%', height: '100%' }} />;
 }

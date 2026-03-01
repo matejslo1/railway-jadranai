@@ -14,5 +14,17 @@ export default defineConfig({
   },
   build: {
     outDir: 'dist',
+    chunkSizeWarningLimit: 4000,
+    rollupOptions: {
+      output: {
+        manualChunks(id) {
+          if (id.includes('node_modules')) {
+            if (id.includes('world-atlas')) return 'world-atlas';
+            if (id.includes('leaflet')) return 'leaflet';
+            return 'vendor';
+          }
+        }
+      }
+    }
   },
 });
