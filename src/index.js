@@ -19,8 +19,8 @@ const PORT = process.env.PORT || 3001;
 
 // --- Global Middleware ---
 app.use(cors({
-  origin: process.env.FRONTEND_URL || '*',
-  methods: ['GET', 'POST'],
+  origin: '*',
+  methods: ['GET', 'POST', 'OPTIONS'],
   allowedHeaders: ['Content-Type', 'x-user-id', 'Authorization'],
 }));
 app.use(express.json({ limit: '1mb' }));
