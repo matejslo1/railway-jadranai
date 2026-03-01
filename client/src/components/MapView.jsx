@@ -170,7 +170,7 @@ export default function MapView({ itinerary, activeDay, showDebug, showSafeRoute
     Object.values(layersRef.current)
       .filter(l => l && l instanceof L.Layer && l !== layersRef.current.base && l !== layersRef.current.seamarks)
       .forEach(l => {
-        try { map.removeLayer(l); } catch {}
+        try { map.removeLayer(l); } catch { }
       });
 
     // Marker icons
@@ -248,5 +248,5 @@ export default function MapView({ itinerary, activeDay, showDebug, showSafeRoute
     }
   }, [activeDay, itinerary, landPoly, places, routePoints, safeWps, showDebug, showRoute, showSafeRoute, stops]);
 
-  return <div id="map" style={{ width: '100%', height: '100%' }} />;
+  return <div id="map" style={{ width: '100%', height: '400px', minHeight: '400px', borderRadius: '12px', zIndex: 1 }} />;
 }
