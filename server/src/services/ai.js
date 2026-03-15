@@ -80,7 +80,7 @@ async function callAI(system, userMessage, maxTokens = 4000) {
       'X-Title': 'Jadran AI',
     },
     body: JSON.stringify({
-      model: 'anthropic/claude-3.5-sonnet',
+      model: 'meta-llama/llama-3.3-70b-instruct:free',
       messages: [
         { role: 'system', content: system },
         { role: 'user', content: userMessage }
