@@ -83,8 +83,10 @@ CRITICAL RULES:
 }
 
 const FREE_MODELS = [
-  'deepseek/deepseek-r1:free',
+  'qwen/qwen2.5-72b-instruct:free',
+  'mistralai/mistral-small-3.1-24b-instruct:free',
   'meta-llama/llama-3.3-70b-instruct:free',
+  'nousresearch/hermes-3-llama-3.1-405b:free',
   'google/gemma-3-27b-it:free',
 ];
 
