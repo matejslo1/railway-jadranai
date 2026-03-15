@@ -75,7 +75,7 @@ router.post('/generate', tripLimiter, async (req, res) => {
         start_location: startName,
         weather_source: 'open-meteo.com',
         generated_at: new Date().toISOString(),
-        ai_model: 'claude-sonnet-4',
+        ai_model: 'anthropic/claude-3.5-sonnet',
       },
     });
   } catch (err) {

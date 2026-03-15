@@ -1,10 +1,10 @@
-// AI Trip Generation + Chat Service
+// AI Trip Generation + Chat Service (OpenRouter)
 const marinas = require('../data/marinas.json');
 const anchorages = require('../data/anchorages.json');
 const restaurants = require('../data/restaurants.json');
 
 const OPENROUTER_API_URL = 'https://openrouter.ai/api/v1/chat/completions';
-const openrouterApiKey = process.env.OPENROUTER_API_KEY;
+const aiApiKey = process.env.OPENROUTER_API_KEY;
 const { generateSafeRouteLegs } = require('./safeRouting');
 
 const LANGUAGE_NAMES = {
@@ -69,7 +69,7 @@ CRITICAL RULES:
 - Starting from ${startLocation || 'Split'}: include day 1 provisioning tips`;
 }
 
-async function callClaude(system, userMessage, maxTokens = 4000) {
+async function callAI(system, userMessage, maxTokens = 4000) {
   if (!process.env.OPENROUTER_API_KEY) throw new Error('OPENROUTER_API_KEY not configured');
   const response = await fetch(OPENROUTER_API_URL, {
     method: 'POST',
@@ -98,7 +98,7 @@ async function callClaude(system, userMessage, maxTokens = 4000) {
 
 
 async function generateTrip(userQuery, weatherData, startLocation, language = 'en', vessel) {
-  const text = await callClaude(buildSystemPrompt(weatherData, startLocation, language), userQuery, 4000);
+  const text = await callAI(buildSystemPrompt(weatherData, startLocation, language), userQuery, 4000);
   const clean = text.replace(/```json|```/g, '').trim();
   try {
     return JSON.parse(clean);
@@ -126,7 +126,7 @@ You can:
 
 Keep responses concise and practical. If suggesting changes to a day, be specific. Use nautical terminology naturally. Respond in ${langName}.`;
 
-  return await callClaude(system, message, 1000);
+  return await callAI(system, message, 1000);
 }
 
 // Known safe Adriatic waypoints — major channels, straits, and open sea passages
@@ -181,8 +181,8 @@ async function generateSafeRoute(days, vessel = { draft_m: 2.0, type: 'sailboat'
     console.warn('[SafeRoute] Deterministic router failed, falling back to AI:', e.message);
   }
 
-  // 2) AI fallback (can still be used if you prefer; requires OPENROUTER_API_KEY)
-  if (!openrouterApiKey) {
+  // 2) AI fallback (requires OPENROUTER_API_KEY)
+  if (!aiApiKey) {
     // No AI key: return straight-ish curve fallback
     return (days || []).map(d => ({
       day: d.day, from: d.from, to: d.to,
@@ -244,7 +244,7 @@ ${JSON.stringify(days.map(d => ({
     toLng: d.toLng,
   })), null, 2)}`;
 
-  const text = await callClaude(system, userMsg, 2000);
+  const text = await callAI(system, userMsg, 2000);
   const clean = text.replace(/```json|```/g, '').trim();
   try {
     return JSON.parse(clean);

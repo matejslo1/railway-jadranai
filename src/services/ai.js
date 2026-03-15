@@ -1,5 +1,5 @@
 // AI Trip Generation Service
-// Uses Anthropic Claude API
+// Uses OpenRouter API
 
 const marinas = require('../data/marinas.json');
 const anchorages = require('../data/anchorages.json');
