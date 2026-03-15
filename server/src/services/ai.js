@@ -83,11 +83,12 @@ CRITICAL RULES:
 }
 
 const FREE_MODELS = [
-  'qwen/qwen2.5-72b-instruct:free',
+  'microsoft/phi-4:free',
   'mistralai/mistral-small-3.1-24b-instruct:free',
   'meta-llama/llama-3.3-70b-instruct:free',
-  'nousresearch/hermes-3-llama-3.1-405b:free',
+  'google/gemma-3-12b-it:free',
   'google/gemma-3-27b-it:free',
+  'nousresearch/hermes-3-llama-3.1-405b:free',
 ];
 
 async function callAI(system, userMessage, maxTokens = 4000) {
