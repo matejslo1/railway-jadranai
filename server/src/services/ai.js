@@ -69,30 +69,50 @@ CRITICAL RULES:
 - Starting from ${startLocation || 'Split'}: include day 1 provisioning tips`;
 }
 
+const FREE_MODELS = [
+  'deepseek/deepseek-r1:free',
+  'meta-llama/llama-3.3-70b-instruct:free',
+  'google/gemma-3-27b-it:free',
+];
+
 async function callAI(system, userMessage, maxTokens = 4000) {
   if (!process.env.OPENROUTER_API_KEY) throw new Error('OPENROUTER_API_KEY not configured');
-  const response = await fetch(OPENROUTER_API_URL, {
-    method: 'POST',
-    headers: {
-      'Content-Type': 'application/json',
-      'Authorization': `Bearer ${process.env.OPENROUTER_API_KEY}`,
-      'HTTP-Referer': 'https://jadranai.xyz',
-      'X-Title': 'Jadran AI',
-    },
-    body: JSON.stringify({
-      model: 'google/gemma-3-27b-it:free',
-      messages: [
-        { role: 'system', content: system },
-        { role: 'user', content: userMessage }
-      ]
-    }),
-  });
-  if (!response.ok) {
-    const err = await response.json().catch(() => ({}));
-    throw new Error(err.error?.message || `OpenRouter API error: ${response.status}`);
+  let lastError;
+  for (const model of FREE_MODELS) {
+    try {
+      const response = await fetch(OPENROUTER_API_URL, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${process.env.OPENROUTER_API_KEY}`,
+          'HTTP-Referer': 'https://jadranai.xyz',
+          'X-Title': 'Jadran AI',
+        },
+        body: JSON.stringify({
+          model,
+          messages: [
+            { role: 'system', content: system },
+            { role: 'user', content: userMessage }
+          ]
+        }),
+      });
+      if (!response.ok) {
+        const err = await response.json().catch(() => ({}));
+        lastError = new Error(err.error?.message || `OpenRouter API error: ${response.status}`);
+        console.warn(`[AI] Model ${model} failed: ${lastError.message} — trying next`);
+        continue;
+      }
+      const data = await response.json();
+      const text = data.choices?.[0]?.message?.content || '';
+      if (!text) { lastError = new Error('Empty response'); continue; }
+      console.log(`[AI] Used model: ${model}`);
+      return text;
+    } catch (e) {
+      lastError = e;
+      console.warn(`[AI] Model ${model} threw: ${e.message} — trying next`);
+    }
   }
-  const data = await response.json();
-  return data.choices?.[0]?.message?.content || '';
+  throw lastError || new Error('All AI models failed');
 }
 
 
