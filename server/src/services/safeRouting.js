@@ -14,19 +14,31 @@ const turfSimplify = require('@turf/simplify').default || require('@turf/simplif
 
 const topojson = require('topojson-client');
 
-// Natural Earth land polygons via world-atlas TopoJSON.
-// Prefer 50m; fall back to 110m.
-let land;
-try {
-  const landTopo = require('world-atlas/land-10m.json');
-  land = topojson.feature(landTopo, landTopo.objects.land);
-} catch (e) {
-  const landTopo = require('world-atlas/land-110m.json');
-  land = topojson.feature(landTopo, landTopo.objects.land);
-}
+// Use 110m resolution only — 10m is ~22MB and OOMs Railway's container.
+// Clip to Adriatic bounding box to minimize memory and buffer cost.
+const ADRIATIC_BBOX = [12.0, 41.2, 20.0, 46.2]; // [minLng, minLat, maxLng, maxLat]
 
-// Buffer land a bit so routes don't "scrape" the coastline.
-// 0.2 km works well as a conservative default for plotting.
+const landTopo = require('world-atlas/land-110m.json');
+const landAll = topojson.feature(landTopo, landTopo.objects.land);
+
+// Filter to features that intersect the Adriatic bounding box
+const adriaticPoly = {
+  type: 'Feature',
+  geometry: {
+    type: 'Polygon',
+    coordinates: [[
+      [ADRIATIC_BBOX[0], ADRIATIC_BBOX[1]],
+      [ADRIATIC_BBOX[2], ADRIATIC_BBOX[1]],
+      [ADRIATIC_BBOX[2], ADRIATIC_BBOX[3]],
+      [ADRIATIC_BBOX[0], ADRIATIC_BBOX[3]],
+      [ADRIATIC_BBOX[0], ADRIATIC_BBOX[1]],
+    ]],
+  },
+};
+const adriaticFeatures = landAll.features.filter(f => booleanIntersects(f, adriaticPoly));
+const land = { type: 'FeatureCollection', features: adriaticFeatures };
+
+// Small buffer so routes don't scrape the coastline
 const LAND_BUFFER_KM = Number(process.env.LAND_BUFFER_KM || 0.3);
 const landBuffered = buffer(land, LAND_BUFFER_KM, { units: 'kilometers' });
 
