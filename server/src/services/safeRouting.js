@@ -36,11 +36,8 @@ const adriaticPoly = {
   },
 };
 const adriaticFeatures = landAll.features.filter(f => booleanIntersects(f, adriaticPoly));
-const land = { type: 'FeatureCollection', features: adriaticFeatures };
-
-// Small buffer so routes don't scrape the coastline
-const LAND_BUFFER_KM = Number(process.env.LAND_BUFFER_KM || 0.3);
-const landBuffered = buffer(land, LAND_BUFFER_KM, { units: 'kilometers' });
+// Use land directly — buffering the entire coastline is too memory-intensive on free tiers
+const landBuffered = { type: 'FeatureCollection', features: adriaticFeatures };
 
 function mkPoint(lat, lng) {
   return point([lng, lat]);
