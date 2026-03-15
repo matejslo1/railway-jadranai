@@ -5,7 +5,20 @@ const restaurants = require('../data/restaurants.json');
 
 const OPENROUTER_API_URL = 'https://openrouter.ai/api/v1/chat/completions';
 const aiApiKey = process.env.OPENROUTER_API_KEY;
-const { generateSafeRouteLegs } = require('./safeRouting');
+
+// Lazy-load safeRouting — it loads world-atlas data and may fail on low-memory hosts
+let _safeRoutingModule = null;
+function getSafeRouteLegs() {
+  if (!_safeRoutingModule) {
+    try {
+      _safeRoutingModule = require('./safeRouting');
+    } catch (e) {
+      console.warn('[SafeRoute] Failed to load safeRouting module:', e.message);
+      _safeRoutingModule = { generateSafeRouteLegs: null };
+    }
+  }
+  return _safeRoutingModule.generateSafeRouteLegs;
+}
 
 const LANGUAGE_NAMES = {
   en: 'English', sl: 'Slovenian', hr: 'Croatian', it: 'Italian', de: 'German',
@@ -191,6 +204,8 @@ AREAS TO AVOID:
 async function generateSafeRoute(days, vessel = { draft_m: 2.0, type: 'sailboat' }) {
   // 1) Deterministic land-avoid router (fast, no API keys)
   try {
+    const generateSafeRouteLegs = getSafeRouteLegs();
+    if (!generateSafeRouteLegs) throw new Error('safeRouting module not available');
     const safeLegs = generateSafeRouteLegs(days);
     // If we produced waypoints, return them.
     if (Array.isArray(safeLegs) && safeLegs.some(l => (l.waypoints || []).length >= 2)) {
