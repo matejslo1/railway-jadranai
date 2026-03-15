@@ -13,5 +13,5 @@ It will:
 - start the server (serves `/api/*` and the built UI)
 
 ## Notes
-- Edit `server/.env` and set `CLAUDE_API_KEY` for AI features.
+- Edit `server/.env` and set `OPENROUTER_API_KEY` for AI features.
 - If you run behind a reverse proxy (nginx), keep `PORT` internal and proxy to it.

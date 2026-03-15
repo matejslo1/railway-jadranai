@@ -47,7 +47,7 @@ app.get('/health', (req, res) => {
   res.json({
     status: 'ok',
     uptime: process.uptime(),
-    claude_api: process.env.CLAUDE_API_KEY ? 'configured' : 'missing',
+    openrouter_api: process.env.OPENROUTER_API_KEY ? 'configured' : 'missing',
   });
 });
 
@@ -71,13 +71,14 @@ app.use((err, req, res, next) => {
   });
 });
 
+
 // --- Start ---
 app.listen(PORT, () => {
   console.log(`
   ⛵  Jadran AI Server v1.0.0
   📍  Port: ${PORT}
   🌊  Env: ${process.env.NODE_ENV || 'development'}
-  🔑  Claude API: ${process.env.CLAUDE_API_KEY ? '✅ configured' : '❌ MISSING'}
+  🔑  OpenRouter API: ${process.env.OPENROUTER_API_KEY ? '✅ configured' : '❌ MISSING'}
   🌐  CORS: ${process.env.FRONTEND_URL || '*'}
   
   Endpoints:

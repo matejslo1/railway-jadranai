@@ -145,30 +145,33 @@ RESTAURANTS: ${JSON.stringify(RESTAURANTS.map(r=>({name:r.name,location:r.locati
 
 Rules: Use weather data for safety. Wind>25kt = suggest shelter. Families: 15-25nm/day. Experienced: up to 40nm. Include coordinates for all stops. Recommend restaurants rated 4.0+. Add insider tips.`;
 
-  const response = await fetch('https://api.anthropic.com/v1/messages', {
+  const response = await fetch('https://openrouter.ai/api/v1/chat/completions', {
     method: 'POST',
     headers: {
       'Content-Type': 'application/json',
-      'x-api-key': process.env.CLAUDE_API_KEY,
-      'anthropic-version': '2023-06-01',
+      'Authorization': `Bearer ${process.env.OPENROUTER_API_KEY}`,
+      'HTTP-Referer': 'https://jadranai.xyz',
+      'X-Title': 'Jadran AI',
     },
     body: JSON.stringify({
-      model: 'claude-sonnet-4-20250514',
-      max_tokens: 4000,
-      system: systemPrompt,
-      messages: [{ role: 'user', content: userQuery }],
+      model: 'anthropic/claude-3.5-sonnet',
+      messages: [
+        { role: 'system', content: systemPrompt },
+        { role: 'user', content: userQuery }
+      ],
+      response_format: { type: 'json_object' }
     }),
   });
 
   const data = await response.json();
   if (data.error) throw new Error(data.error.message || 'AI generation failed');
-  const text = data.content?.[0]?.text || '';
+  const text = data.choices?.[0]?.message?.content || '';
   return JSON.parse(text.replace(/```json|```/g, '').trim());
 }
 
 // --- Routes ---
 app.get('/', (req, res) => res.json({ status: 'ok', service: 'jadran-ai', version: '1.1.0' }));
-app.get('/health', (req, res) => res.json({ status: 'ok', claude_api: process.env.CLAUDE_API_KEY ? 'configured' : 'missing' }));
+app.get('/health', (req, res) => res.json({ status: 'ok', openrouter_api: process.env.OPENROUTER_API_KEY ? 'configured' : 'missing' }));
 
 app.post('/api/trips/generate', tripLimiter, async (req, res) => {
   try {
@@ -222,5 +225,5 @@ app.post('/api/waitlist', async (req, res) => {
 });
 
 app.listen(PORT, () => {
-  console.log(`⛵ Jadran AI v1.1.0 | Port ${PORT} | Claude API: ${process.env.CLAUDE_API_KEY ? '✅' : '❌'}`);
+  console.log(`⛵ Jadran AI v1.1.0 | Port ${PORT} | OpenRouter API: ${process.env.OPENROUTER_API_KEY ? '✅' : '❌'}`);
 });

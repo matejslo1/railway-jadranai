@@ -12,10 +12,10 @@ cd server && cp .env.example .env && npm install && npm run dev
 cd client && npm install && npm run dev
 ```
 
-Add your `CLAUDE_API_KEY` to `server/.env`
+Add your `OPENROUTER_API_KEY` to `server/.env`
 
 ## Deploy to Railway
 
 1. Railway → New Service → GitHub repo
 2. Root Directory: `server`
-3. Add variable: `CLAUDE_API_KEY=your-key`
+3. Add variable: `OPENROUTER_API_KEY=your-key`

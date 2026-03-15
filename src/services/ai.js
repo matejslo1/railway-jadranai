@@ -5,7 +5,7 @@ const marinas = require('../data/marinas.json');
 const anchorages = require('../data/anchorages.json');
 const restaurants = require('../data/restaurants.json');
 
-const CLAUDE_API_URL = 'https://api.anthropic.com/v1/messages';
+const OPENROUTER_API_URL = 'https://openrouter.ai/api/v1/chat/completions';
 
 function buildSystemPrompt(weatherData, startLocation) {
   return `You are "Jadran AI" — an expert Adriatic sailing trip planner with decades of experience navigating the Croatian, Slovenian, and Montenegrin coasts.
@@ -90,32 +90,35 @@ CRITICAL RULES:
 }
 
 async function generateTrip(userQuery, weatherData, startLocation) {
-  if (!process.env.CLAUDE_API_KEY) {
-    throw new Error('CLAUDE_API_KEY not configured');
+  if (!process.env.OPENROUTER_API_KEY) {
+    throw new Error('OPENROUTER_API_KEY not configured');
   }
 
-  const response = await fetch(CLAUDE_API_URL, {
+  const response = await fetch(OPENROUTER_API_URL, {
     method: 'POST',
     headers: {
       'Content-Type': 'application/json',
-      'x-api-key': process.env.CLAUDE_API_KEY,
-      'anthropic-version': '2023-06-01',
+      'Authorization': `Bearer ${process.env.OPENROUTER_API_KEY}`,
+      'HTTP-Referer': 'https://jadranai.xyz', // Optional: Your site URL
+      'X-Title': 'Jadran AI', // Optional: Your site name
     },
     body: JSON.stringify({
-      model: 'claude-sonnet-4-20250514',
-      max_tokens: 4000,
-      system: buildSystemPrompt(weatherData, startLocation),
-      messages: [{ role: 'user', content: userQuery }],
+      model: 'anthropic/claude-3.5-sonnet',
+      messages: [
+        { role: 'system', content: buildSystemPrompt(weatherData, startLocation) },
+        { role: 'user', content: userQuery }
+      ],
+      response_format: { type: 'json_object' }
     }),
   });
 
   if (!response.ok) {
     const err = await response.json().catch(() => ({}));
-    throw new Error(err.error?.message || `Claude API error: ${response.status}`);
+    throw new Error(err.error?.message || `OpenRouter API error: ${response.status}`);
   }
 
   const data = await response.json();
-  const text = data.content?.[0]?.text || '';
+  const text = data.choices?.[0]?.message?.content || '';
   const clean = text.replace(/```json|```/g, '').trim();
 
   try {
@@ -125,5 +128,6 @@ async function generateTrip(userQuery, weatherData, startLocation) {
     throw new Error('AI generated invalid response. Please try again.');
   }
 }
+
 
 module.exports = { generateTrip };
