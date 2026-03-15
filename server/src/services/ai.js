@@ -84,8 +84,7 @@ async function callAI(system, userMessage, maxTokens = 4000) {
       messages: [
         { role: 'system', content: system },
         { role: 'user', content: userMessage }
-      ],
-      response_format: { type: 'json_object' }
+      ]
     }),
   });
   if (!response.ok) {
