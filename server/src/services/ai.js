@@ -60,17 +60,17 @@ RESPONSE JSON STRUCTURE:
   "warnings": ["string"]
 }
 
-LIVE WEATHER FORECAST:
-${JSON.stringify(weatherData, null, 2)}
+WEATHER (next 7 days):
+${JSON.stringify(weatherData.map(d => ({ date: d.date, tMax: d.temp_max, wind: d.wind_max_knots + 'kt ' + d.wind_direction, waves: d.wave_height, cond: d.condition, safety: d.sailing_safety?.label })))}
 
-AVAILABLE MARINAS:
-${JSON.stringify(marinas.map(m => ({ name: m.name, lat: m.lat, lng: m.lng, price: m.price_range, rating: m.rating, facilities: m.facilities, region: m.region })), null, 2)}
+MARINAS:
+${JSON.stringify(marinas.slice(0, 12).map(m => ({ name: m.name, lat: m.lat, lng: m.lng, price: m.price_range, rating: m.rating, region: m.region })))}
 
 ANCHORAGES:
-${JSON.stringify(anchorages.map(a => ({ name: a.name, location: a.location, lat: a.lat, lng: a.lng, depth: a.depth, seabed: a.seabed, protection: a.protection, rating: a.rating, notes: a.notes })), null, 2)}
+${JSON.stringify(anchorages.slice(0, 10).map(a => ({ name: a.name, loc: a.location, lat: a.lat, lng: a.lng, depth: a.depth, rating: a.rating, notes: a.notes })))}
 
 RESTAURANTS:
-${JSON.stringify(restaurants.map(r => ({ name: r.name, location: r.location, lat: r.lat, lng: r.lng, cuisine: r.cuisine, rating: r.rating, price: r.price, must_try: r.must_try, notes: r.notes })), null, 2)}
+${JSON.stringify(restaurants.slice(0, 10).map(r => ({ name: r.name, loc: r.location, lat: r.lat, lng: r.lng, rating: r.rating, price: r.price, dish: r.must_try })))}
 
 CRITICAL RULES:
 - ALL text content in JSON must be in ${langName}
