@@ -53,7 +53,7 @@ router.post('/generate', tripLimiter, async (req, res) => {
     console.log(`[Trip] Generated: "${itinerary.tripTitle}" — ${itinerary.days?.length} days`);
     res.json({
       success: true, itinerary,
-      meta: { start_location: startName, weather_source: 'open-meteo.com', generated_at: new Date().toISOString(), ai_model: 'claude-sonnet-4', language: lang },
+      meta: { start_location: startName, weather_source: 'open-meteo.com', generated_at: new Date().toISOString(), ai_model: 'anthropic/claude-3.5-sonnet', language: lang },
     });
   } catch (err) {
     console.error('[Trip] Error:', err.message);

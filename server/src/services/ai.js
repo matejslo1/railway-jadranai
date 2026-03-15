@@ -3,8 +3,8 @@ const marinas = require('../data/marinas.json');
 const anchorages = require('../data/anchorages.json');
 const restaurants = require('../data/restaurants.json');
 
-const CLAUDE_API_URL = 'https://api.anthropic.com/v1/messages';
-const claudeApiKey = process.env.CLAUDE_API_KEY;
+const OPENROUTER_API_URL = 'https://openrouter.ai/api/v1/chat/completions';
+const openrouterApiKey = process.env.OPENROUTER_API_KEY;
 const { generateSafeRouteLegs } = require('./safeRouting');
 
 const LANGUAGE_NAMES = {
@@ -70,28 +70,32 @@ CRITICAL RULES:
 }
 
 async function callClaude(system, userMessage, maxTokens = 4000) {
-  if (!process.env.CLAUDE_API_KEY) throw new Error('CLAUDE_API_KEY not configured');
-  const response = await fetch(CLAUDE_API_URL, {
+  if (!process.env.OPENROUTER_API_KEY) throw new Error('OPENROUTER_API_KEY not configured');
+  const response = await fetch(OPENROUTER_API_URL, {
     method: 'POST',
     headers: {
       'Content-Type': 'application/json',
-      'x-api-key': process.env.CLAUDE_API_KEY,
-      'anthropic-version': '2023-06-01',
+      'Authorization': `Bearer ${process.env.OPENROUTER_API_KEY}`,
+      'HTTP-Referer': 'https://jadranai.xyz',
+      'X-Title': 'Jadran AI',
     },
     body: JSON.stringify({
-      model: 'claude-sonnet-4-20250514',
-      max_tokens: maxTokens,
-      system,
-      messages: [{ role: 'user', content: userMessage }],
+      model: 'anthropic/claude-3.5-sonnet',
+      messages: [
+        { role: 'system', content: system },
+        { role: 'user', content: userMessage }
+      ],
+      response_format: { type: 'json_object' }
     }),
   });
   if (!response.ok) {
     const err = await response.json().catch(() => ({}));
-    throw new Error(err.error?.message || `Claude API error: ${response.status}`);
+    throw new Error(err.error?.message || `OpenRouter API error: ${response.status}`);
   }
   const data = await response.json();
-  return data.content?.[0]?.text || '';
+  return data.choices?.[0]?.message?.content || '';
 }
+
 
 async function generateTrip(userQuery, weatherData, startLocation, language = 'en', vessel) {
   const text = await callClaude(buildSystemPrompt(weatherData, startLocation, language), userQuery, 4000);
@@ -177,8 +181,8 @@ async function generateSafeRoute(days, vessel = { draft_m: 2.0, type: 'sailboat'
     console.warn('[SafeRoute] Deterministic router failed, falling back to AI:', e.message);
   }
 
-  // 2) AI fallback (can still be used if you prefer; requires CLAUDE_API_KEY)
-  if (!claudeApiKey) {
+  // 2) AI fallback (can still be used if you prefer; requires OPENROUTER_API_KEY)
+  if (!openrouterApiKey) {
     // No AI key: return straight-ish curve fallback
     return (days || []).map(d => ({
       day: d.day, from: d.from, to: d.to,
